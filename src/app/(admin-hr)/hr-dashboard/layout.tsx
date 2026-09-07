@@ -468,7 +468,7 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
                 title="Quick Create"
               >
                 <PlusIcon className="w-3.5 h-3.5 text-white" size={14} />
-                <span className="hidden sm:inline">Quick Action</span>
+                {/* <span className="hidden sm:inline">Quick Action</span> */}
               </button>
 
               {/* Quick Add Dropdown Menu */}

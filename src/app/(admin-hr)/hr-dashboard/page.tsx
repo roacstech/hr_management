@@ -12,7 +12,6 @@ export default function HRDashboardRootPage() {
     attendanceRecords,
     payrollRuns,
     announcements,
-    showToast,
   } = useTenant();
 
   const [analyticsDimension, setAnalyticsDimension] = useState<
@@ -105,23 +104,6 @@ export default function HRDashboardRootPage() {
       : monthlyTurnoverData;
 
   const currentMonthTurnover = filteredTurnover[filteredTurnover.length - 1];
-
-  // Action handlers
-  const handleApproveLeave = (reqId: string, empName: string) => {
-    const req = leaveRequests.find((r) => r.id === reqId);
-    if (req) {
-      req.status = "Approved";
-      showToast(`Approved leave request for ${empName}`);
-    }
-  };
-
-  const handleRejectLeave = (reqId: string, empName: string) => {
-    const req = leaveRequests.find((r) => r.id === reqId);
-    if (req) {
-      req.status = "Rejected";
-      showToast(`Rejected leave request for ${empName}`, "info");
-    }
-  };
 
   return (
     <div className="space-y-8 pb-14 font-sans">
@@ -710,10 +692,10 @@ export default function HRDashboardRootPage() {
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div>
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
-                Pending Admin Actions
+                Recent Requests & Status
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
-                Leave approvals, expense audits, and payroll verification
+                Leave applications and workforce status tracking
               </p>
             </div>
             <div className="flex bg-gray-100 p-0.5 rounded-lg text-xs">
@@ -766,20 +748,26 @@ export default function HRDashboardRootPage() {
                   </div>
 
                   <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
-                    <button
-                      type="button"
-                      onClick={() => handleApproveLeave(req.id, req.employeeName)}
-                      className="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition shadow-2xs cursor-pointer"
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                        req.status === "Approved"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : req.status === "Rejected"
+                          ? "bg-red-50 text-red-700 border-red-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}
                     >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRejectLeave(req.id, req.employeeName)}
-                      className="px-3 py-1.5 rounded-md bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 font-semibold text-xs transition cursor-pointer"
-                    >
-                      Reject
-                    </button>
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                          req.status === "Approved"
+                            ? "bg-emerald-500"
+                            : req.status === "Rejected"
+                            ? "bg-red-500"
+                            : "bg-amber-500 animate-pulse"
+                        }`}
+                      />
+                      {req.status}
+                    </span>
                   </div>
                 </div>
               ))
@@ -803,12 +791,10 @@ export default function HRDashboardRootPage() {
                   </p>
                 </div>
               </div>
-              <Link
-                href="/hr-dashboard/payroll"
-                className="px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition"
-              >
-                Review Payroll
-              </Link>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5" />
+                {latestPayroll?.status || "Processing"}
+              </span>
             </div>
           </div>
         </div>
