@@ -22,6 +22,10 @@ import {
   OrganizationPlan,
   BillingCycle,
   OffboardingDetails,
+  TimesheetCorrectionRequest,
+  TeamMemberTimesheet,
+  TeamSpacePost,
+  TeamSpaceComment,
 } from "@/lib/types";
 import { tenantStore } from "@/lib/tenant-store";
 
@@ -51,6 +55,9 @@ interface TenantContextValue {
   auditLogs: AuditLog[];
   notifications: TenantNotification[];
   invoices: SubscriptionInvoice[];
+  timesheetCorrections: TimesheetCorrectionRequest[];
+  teamTimesheets: TeamMemberTimesheet[];
+  teamSpacePosts: TeamSpacePost[];
   toasts: ToastMessage[];
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   dismissToast: (id: string) => void;
@@ -79,6 +86,18 @@ interface TenantContextValue {
   markNotificationAsRead: (id: string) => void;
   clearAllNotifications: () => void;
   refreshState: () => void;
+
+  // Team Lead Operations
+  approveTimesheetCorrection: (id: string, reviewerName?: string) => void;
+  rejectTimesheetCorrection: (id: string, reviewerName?: string, reason?: string) => void;
+  approveLeaveRequest: (id: string, reviewerName?: string) => void;
+  rejectLeaveRequest: (id: string, reviewerName?: string, reason?: string) => void;
+  verifyTeamTimesheet: (timesheetId: string) => void;
+  submitTeamTimesheetsToHR: (weekId: string) => void;
+  createTeamSpacePost: (post: Omit<TeamSpacePost, "id" | "organizationId" | "createdAt" | "reactions" | "comments">) => TeamSpacePost;
+  togglePostReaction: (postId: string, emoji: string, userName?: string) => void;
+  addPostComment: (postId: string, comment: Omit<TeamSpaceComment, "id" | "timestamp">) => TeamSpaceComment;
+  regularizePunch: (employeeId: string, date: string, checkIn: string, checkOut: string, status?: AttendanceRecord["status"]) => void;
 }
 
 const TenantContext = createContext<TenantContextValue | null>(null);
@@ -144,6 +163,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const auditLogs = tenantStore.getAuditLogs(currentOrgId);
   const notifications = tenantStore.getNotifications(currentOrgId);
   const invoices = tenantStore.getInvoices(currentOrgId);
+  const timesheetCorrections = tenantStore.getTimesheetCorrections(currentOrgId);
+  const teamTimesheets = tenantStore.getTeamTimesheets(currentOrgId);
+  const teamSpacePosts = tenantStore.getTeamSpacePosts(currentOrgId);
 
   // Operations
   const updateOrganizationProfile = (updates: Partial<Organization>) => {
@@ -307,6 +329,68 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     showToast("All notifications cleared.");
   };
 
+  // Team Lead Operations
+  const approveTimesheetCorrection = (id: string, reviewerName: string = "Team Lead") => {
+    tenantStore.approveTimesheetCorrection(currentOrgId, id, reviewerName);
+    refreshState();
+    showToast("Timesheet punch correction approved successfully!");
+  };
+
+  const rejectTimesheetCorrection = (id: string, reviewerName: string = "Team Lead", reason?: string) => {
+    tenantStore.rejectTimesheetCorrection(currentOrgId, id, reviewerName, reason);
+    refreshState();
+    showToast("Correction request rejected.", "info");
+  };
+
+  const approveLeaveRequest = (id: string, reviewerName: string = "Team Lead") => {
+    tenantStore.approveLeaveRequest(currentOrgId, id, reviewerName);
+    refreshState();
+    showToast("Leave request approved.");
+  };
+
+  const rejectLeaveRequest = (id: string, reviewerName: string = "Team Lead", reason?: string) => {
+    tenantStore.rejectLeaveRequest(currentOrgId, id, reviewerName, reason);
+    refreshState();
+    showToast("Leave request rejected.", "info");
+  };
+
+  const verifyTeamTimesheet = (timesheetId: string) => {
+    tenantStore.verifyTeamTimesheet(currentOrgId, timesheetId);
+    refreshState();
+    showToast("Timesheet verified for employee.");
+  };
+
+  const submitTeamTimesheetsToHR = (weekId: string) => {
+    tenantStore.submitTeamTimesheetsToHR(currentOrgId, weekId);
+    refreshState();
+    showToast("Timesheets submitted to HR for payroll processing!", "success");
+  };
+
+  const createTeamSpacePost = (post: Omit<TeamSpacePost, "id" | "organizationId" | "createdAt" | "reactions" | "comments">) => {
+    const p = tenantStore.createTeamSpacePost(currentOrgId, post);
+    refreshState();
+    showToast(`Published team update: "${p.title}"`);
+    return p;
+  };
+
+  const togglePostReaction = (postId: string, emoji: string, userName?: string) => {
+    tenantStore.togglePostReaction(currentOrgId, postId, emoji, userName);
+    refreshState();
+  };
+
+  const addPostComment = (postId: string, comment: Omit<TeamSpaceComment, "id" | "timestamp">) => {
+    const c = tenantStore.addPostComment(currentOrgId, postId, comment);
+    refreshState();
+    showToast("Comment posted.");
+    return c;
+  };
+
+  const regularizePunch = (employeeId: string, date: string, checkIn: string, checkOut: string, status: AttendanceRecord["status"] = "Present") => {
+    tenantStore.regularizePunch(currentOrgId, employeeId, date, checkIn, checkOut, status);
+    refreshState();
+    showToast("Attendance regularized successfully.");
+  };
+
   // Periodic check
   useEffect(() => {
     const handleStorage = () => refreshState();
@@ -336,6 +420,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         auditLogs,
         notifications,
         invoices,
+        timesheetCorrections,
+        teamTimesheets,
+        teamSpacePosts,
         toasts,
         showToast,
         dismissToast,
@@ -362,6 +449,16 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         markNotificationAsRead,
         clearAllNotifications,
         refreshState,
+        approveTimesheetCorrection,
+        rejectTimesheetCorrection,
+        approveLeaveRequest,
+        rejectLeaveRequest,
+        verifyTeamTimesheet,
+        submitTeamTimesheetsToHR,
+        createTeamSpacePost,
+        togglePostReaction,
+        addPostComment,
+        regularizePunch,
       }}
     >
       {children}

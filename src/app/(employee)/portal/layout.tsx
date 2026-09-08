@@ -40,7 +40,7 @@ function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }
   // Main fixed sidebar dock items for Employee
   const dockMenuItems = [
     { name: "Dashboard", path: "/portal", icon: HomeIcon, exact: true },
-    { name: "My Profile", path: "/portal/profile", icon: OnboardingIcon },
+    // { name: "My Profile", path: "/portal/profile", icon: OnboardingIcon },
     { name: "Attendance", path: "/portal/attendance", icon: AttendanceIcon },
     { name: "Leaves", path: "/portal/leave-tracker", icon: LeaveTrackerIcon },
     { name: "Payslips", path: "/portal/payslips", icon: CompensationIcon },
@@ -313,6 +313,15 @@ function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }
                 </span>
               )}
             </button>
+
+            {/* Settings Gear Icon */}
+            <Link
+              href="/portal/profile"
+              className="w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none"
+              title="Employee Preferences & Settings"
+            >
+              <GearIcon className="w-4 h-4" size={16} />
+            </Link>
 
             {/* User Avatar Icon */}
             <div className="relative" ref={profileRef}>

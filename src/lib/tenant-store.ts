@@ -20,6 +20,10 @@ import {
   OrganizationPlan,
   BillingCycle,
   OffboardingDetails,
+  TimesheetCorrectionRequest,
+  TeamMemberTimesheet,
+  TeamSpacePost,
+  TeamSpaceComment,
 } from "./types";
 import {
   initialOrganizations,
@@ -38,6 +42,9 @@ import {
   initialAuditLogs,
   initialNotifications,
   initialSubscriptionInvoices,
+  initialTimesheetCorrections,
+  initialTeamTimesheets,
+  initialTeamSpacePosts,
 } from "./mock-data";
 
 export interface TenantDataState {
@@ -57,6 +64,9 @@ export interface TenantDataState {
   auditLogs: AuditLog[];
   notifications: TenantNotification[];
   invoices: SubscriptionInvoice[];
+  timesheetCorrections: TimesheetCorrectionRequest[];
+  teamTimesheets: TeamMemberTimesheet[];
+  teamSpacePosts: TeamSpacePost[];
 }
 
 const STORAGE_KEY = "crewsync_enterprise_hrms_v1";
@@ -151,6 +161,9 @@ export class TenantDataStore {
       auditLogs: initialAuditLogs,
       notifications: initialNotifications,
       invoices: initialSubscriptionInvoices,
+      timesheetCorrections: initialTimesheetCorrections,
+      teamTimesheets: initialTeamTimesheets,
+      teamSpacePosts: initialTeamSpacePosts,
     };
   }
 
@@ -177,6 +190,9 @@ export class TenantDataStore {
           auditLogs: parsed.auditLogs || initialAuditLogs,
           notifications: parsed.notifications || initialNotifications,
           invoices: parsed.invoices || initialSubscriptionInvoices,
+          timesheetCorrections: parsed.timesheetCorrections || initialTimesheetCorrections,
+          teamTimesheets: parsed.teamTimesheets || initialTeamTimesheets,
+          teamSpacePosts: parsed.teamSpacePosts || initialTeamSpacePosts,
         };
       }
       const savedOrg = localStorage.getItem("crewsync_active_org");
@@ -927,6 +943,201 @@ export class TenantDataStore {
   public clearAllNotifications(orgId: string) {
     this.state.notifications = this.state.notifications.filter((n) => n.organizationId !== orgId);
     this.persist();
+  }
+
+  // --- Team Lead Operations ---
+  public getTimesheetCorrections(orgId: string): TimesheetCorrectionRequest[] {
+    return (this.state.timesheetCorrections || []).filter((c) => c.organizationId === orgId);
+  }
+
+  public getTeamTimesheets(orgId: string): TeamMemberTimesheet[] {
+    return (this.state.teamTimesheets || []).filter((t) => t.organizationId === orgId);
+  }
+
+  public getTeamSpacePosts(orgId: string): TeamSpacePost[] {
+    return (this.state.teamSpacePosts || []).filter((p) => p.organizationId === orgId);
+  }
+
+  public approveTimesheetCorrection(orgId: string, id: string, reviewerName: string = "Team Lead") {
+    const item = (this.state.timesheetCorrections || []).find((c) => c.organizationId === orgId && c.id === id);
+    if (item) {
+      item.status = "Approved";
+      item.reviewedBy = reviewerName;
+      item.reviewedAt = new Date().toISOString();
+      this.persist();
+      this.addNotification(orgId, {
+        title: "Punch Correction Approved",
+        message: `Correction request for ${item.employeeName} (${item.type}) was approved.`,
+        category: "attendance" as any,
+        link: "/tl-dashboard/desk",
+      });
+    }
+    return item;
+  }
+
+  public rejectTimesheetCorrection(orgId: string, id: string, reviewerName: string = "Team Lead", reason?: string) {
+    const item = (this.state.timesheetCorrections || []).find((c) => c.organizationId === orgId && c.id === id);
+    if (item) {
+      item.status = "Rejected";
+      item.reviewedBy = reviewerName;
+      item.reviewedAt = new Date().toISOString();
+      if (reason) item.rejectionReason = reason;
+      this.persist();
+      this.addNotification(orgId, {
+        title: "Punch Correction Rejected",
+        message: `Correction request for ${item.employeeName} was rejected: ${reason || "Does not meet policy"}.`,
+        category: "attendance" as any,
+        link: "/tl-dashboard/desk",
+      });
+    }
+    return item;
+  }
+
+  public approveLeaveRequest(orgId: string, id: string, reviewerName: string = "Team Lead") {
+    const item = (this.state.leaveRequests || []).find((l) => l.organizationId === orgId && l.id === id);
+    if (item) {
+      item.status = "Approved";
+      item.reviewedBy = reviewerName;
+      item.reviewedAt = new Date().toISOString();
+      this.persist();
+      this.addNotification(orgId, {
+        title: "Leave Request Approved",
+        message: `${item.leaveTypeName} application for ${item.employeeName} (${item.days} days) has been approved.`,
+        category: "leave",
+        link: "/tl-dashboard/desk",
+      });
+    }
+    return item;
+  }
+
+  public rejectLeaveRequest(orgId: string, id: string, reviewerName: string = "Team Lead", reason?: string) {
+    const item = (this.state.leaveRequests || []).find((l) => l.organizationId === orgId && l.id === id);
+    if (item) {
+      item.status = "Rejected";
+      item.reviewedBy = reviewerName;
+      item.reviewedAt = new Date().toISOString();
+      this.persist();
+      this.addNotification(orgId, {
+        title: "Leave Request Rejected",
+        message: `Leave application for ${item.employeeName} was rejected: ${reason || "Capacity conflict"}.`,
+        category: "leave",
+        link: "/tl-dashboard/desk",
+      });
+    }
+    return item;
+  }
+
+  public verifyTeamTimesheet(orgId: string, timesheetId: string) {
+    const item = (this.state.teamTimesheets || []).find((t) => t.organizationId === orgId && t.id === timesheetId);
+    if (item) {
+      item.status = "Verified";
+      item.hasDiscrepancy = false;
+      item.verifiedAt = new Date().toISOString();
+      this.persist();
+    }
+    return item;
+  }
+
+  public submitTeamTimesheetsToHR(orgId: string, weekId: string) {
+    const weekItems = (this.state.teamTimesheets || []).filter((t) => t.organizationId === orgId && t.weekId === weekId);
+    weekItems.forEach((item) => {
+      item.status = "SubmittedToHR";
+      item.submittedToHRAt = new Date().toISOString();
+    });
+    this.persist();
+    this.addNotification(orgId, {
+      title: "Team Timesheets Submitted to HR",
+      message: `Engineering Team Lead submitted ${weekItems.length} verified weekly timesheets for HR payroll verification.`,
+      category: "payroll",
+      link: "/hr-dashboard/payroll",
+    });
+    return weekItems;
+  }
+
+  public createTeamSpacePost(orgId: string, post: Omit<TeamSpacePost, "id" | "organizationId" | "createdAt" | "reactions" | "comments">): TeamSpacePost {
+    const newPost: TeamSpacePost = {
+      ...post,
+      id: `tsp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      organizationId: orgId,
+      createdAt: new Date().toISOString(),
+      reactions: [
+        { emoji: "👍", count: 1, users: [post.authorName || "You"] },
+      ],
+      comments: [],
+    };
+    if (!this.state.teamSpacePosts) this.state.teamSpacePosts = [];
+    this.state.teamSpacePosts.unshift(newPost);
+    this.persist();
+    this.addNotification(orgId, {
+      title: `Team Update: ${newPost.title}`,
+      message: `${newPost.authorName} posted a new update in Team Space (${newPost.category}).`,
+      category: "announcement",
+      link: "/tl-dashboard/cms",
+    });
+    return newPost;
+  }
+
+  public togglePostReaction(orgId: string, postId: string, emoji: string, userName: string = "Sarah Chen") {
+    const post = (this.state.teamSpacePosts || []).find((p) => p.organizationId === orgId && p.id === postId);
+    if (!post) return;
+    let existingReaction = post.reactions.find((r) => r.emoji === emoji);
+    if (existingReaction) {
+      if (existingReaction.users.includes(userName)) {
+        existingReaction.users = existingReaction.users.filter((u) => u !== userName);
+        existingReaction.count = Math.max(0, existingReaction.count - 1);
+      } else {
+        existingReaction.users.push(userName);
+        existingReaction.count += 1;
+      }
+    } else {
+      post.reactions.push({ emoji, count: 1, users: [userName] });
+    }
+    this.persist();
+  }
+
+  public addPostComment(orgId: string, postId: string, comment: Omit<TeamSpaceComment, "id" | "timestamp">): TeamSpaceComment {
+    const post = (this.state.teamSpacePosts || []).find((p) => p.organizationId === orgId && p.id === postId);
+    const newComment: TeamSpaceComment = {
+      ...comment,
+      id: `cm-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: "Just now",
+    };
+    if (post) {
+      post.comments.push(newComment);
+      this.persist();
+    }
+    return newComment;
+  }
+
+  public regularizePunch(orgId: string, employeeId: string, date: string, checkIn: string, checkOut: string, status: AttendanceRecord["status"] = "Present") {
+    const emp = this.state.employees.find((e) => e.organizationId === orgId && e.id === employeeId);
+    let record = this.state.attendanceRecords.find((a) => a.organizationId === orgId && a.employeeId === employeeId && a.date === date);
+    
+    const calcHours = 8.5;
+
+    if (record) {
+      record.checkIn = checkIn;
+      record.checkOut = checkOut;
+      record.status = status;
+      record.workHours = calcHours;
+      record.overtimeHours = Math.max(0, calcHours - 8);
+    } else {
+      record = {
+        id: `att-${Date.now()}`,
+        organizationId: orgId,
+        employeeId: employeeId,
+        employeeName: emp?.name || "Team Member",
+        date: date,
+        checkIn: checkIn,
+        checkOut: checkOut,
+        status: status,
+        workHours: calcHours,
+        overtimeHours: Math.max(0, calcHours - 8),
+      };
+      this.state.attendanceRecords.unshift(record);
+    }
+    this.persist();
+    return record;
   }
 
   public resetToDefaults() {

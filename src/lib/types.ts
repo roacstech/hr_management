@@ -396,3 +396,93 @@ export interface SubscriptionInvoice {
   status: "Paid" | "Pending";
   pdfDownloadName: string;
 }
+
+export interface TimesheetCorrectionRequest {
+  id: string;
+  organizationId: string;
+  employeeId: string;
+  employeeName: string;
+  employeeAvatar?: string;
+  date: string;
+  type: "Missing Punch-Out" | "Missing Punch-In" | "Late Regularization" | "WFH Adjustment";
+  originalTime?: string;
+  requestedTime: string;
+  reason: string;
+  status: "Pending" | "Approved" | "Rejected";
+  appliedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface DayHourDetail {
+  date: string;
+  dayOfWeek: string; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
+  hours: number;
+  checkIn?: string;
+  checkOut?: string;
+  status: "Regular" | "Overtime" | "Weekend" | "Leave" | "Missing";
+}
+
+export interface TeamMemberTimesheet {
+  id: string;
+  organizationId: string;
+  weekId: string; // e.g. "2026-W36"
+  weekRange: string; // e.g. "Sep 01 - Sep 07, 2026"
+  employeeId: string;
+  employeeName: string;
+  employeeAvatar?: string;
+  designation: string;
+  dailyHours: DayHourDetail[];
+  regularHours: number;
+  overtimeHours: number;
+  totalHours: number;
+  status: "Draft" | "Verified" | "SubmittedToHR";
+  hasDiscrepancy: boolean;
+  discrepancyNote?: string;
+  verifiedAt?: string;
+  submittedToHRAt?: string;
+}
+
+export interface TeamSpaceReaction {
+  emoji: string;
+  count: number;
+  users: string[];
+}
+
+export interface TeamSpaceComment {
+  id: string;
+  authorName: string;
+  authorRole: string;
+  authorAvatar?: string;
+  content: string;
+  timestamp: string;
+}
+
+export interface TeamSpacePost {
+  id: string;
+  organizationId: string;
+  teamId?: string;
+  category: "Goal" | "Schedule" | "Recognition" | "Announcement";
+  title: string;
+  content: string;
+  authorName: string;
+  authorRole: string;
+  authorAvatar?: string;
+  createdAt: string;
+  priority: "Normal" | "Important" | "Urgent";
+  pinned?: boolean;
+  targetEmployeeName?: string;
+  badge?: string;
+  goalProgress?: number;
+  goalTargetDate?: string;
+  scheduleDetails?: {
+    shiftName: string;
+    timing: string;
+    rosterSummary: string;
+    effectiveDates: string;
+  };
+  reactions: TeamSpaceReaction[];
+  comments: TeamSpaceComment[];
+}
+

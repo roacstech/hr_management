@@ -180,6 +180,45 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        {/* Quick Demo Credentials */}
+        <div className="mt-6 pt-5 border-t border-gray-100">
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+            Quick Demo Accounts
+          </p>
+          <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("teamlead@roacs.com");
+                setPassword("Lead@123");
+              }}
+              className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold transition text-center cursor-pointer"
+            >
+              👑 Team Lead
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("admin@roacs.com");
+                setPassword("Admin@123");
+              }}
+              className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 font-bold transition text-center cursor-pointer"
+            >
+              💼 Admin HR
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("employee@roacs.com");
+                setPassword("User@123");
+              }}
+              className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 font-bold transition text-center cursor-pointer"
+            >
+              👤 Employee
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
