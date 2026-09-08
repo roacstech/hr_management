@@ -435,7 +435,7 @@ export default function CompanySettingsPage() {
               className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm"
             >
               <PlusIcon className="w-3.5 h-3.5 mr-1.5 text-white" size={14} />
-              + Create New Shift
+               Create New Shift
             </button>
           </div>
 
@@ -669,7 +669,7 @@ export default function CompanySettingsPage() {
               className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm"
             >
               <PlusIcon className="w-3.5 h-3.5 mr-1.5 text-white" size={14} />
-              + Create Custom Policy
+               Create Custom Policy
             </button>
           </div>
 
