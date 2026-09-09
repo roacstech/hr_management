@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         redirectUrl = "/hr-dashboard";
         break;
       case "MANAGER":
-        redirectUrl = "/manager-dashboard/department";
+        redirectUrl = "/manager-dashboard";
         break;
       case "TEAM_LEAD":
         redirectUrl = "/tl-dashboard/roster";

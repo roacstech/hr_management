@@ -39,7 +39,7 @@ function ManagerPortalLayoutContent({ children }: { children: React.ReactNode })
   const dockMenuItems = [
     { name: "Overview", path: "/manager-dashboard", icon: HomeIcon, exact: true },
     { name: "Approvals", path: "/manager-dashboard/approvals", icon: OperationsIcon },
-    { name: "Performance", path: "/manager-dashboard/performance", icon: TrophyIcon },
+    // { name: "Performance", path: "/manager-dashboard/performance", icon: TrophyIcon },
     { name: "Dept Hub", path: "/manager-dashboard/cms", icon: BuildingIcon },
   ];
 

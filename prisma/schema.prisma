@@ -45,8 +45,10 @@ model User {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  accounts Account[]
-  sessions Session[]
+  accounts           Account[]
+  sessions           Session[]
+  leaveRequests      LeaveRequest[]      @relation("EmployeeLeave")
+  payrollAdjustments PayrollAdjustment[] @relation("EmployeePayroll")
 
   @@index([organizationId])
   @@map("users")
@@ -91,4 +93,38 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+model LeaveRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    User     @relation("EmployeeLeave", fields: [employeeId], references: [id], onDelete: Cascade)
+  type        String   // Annual Leave, Sick Leave, etc.
+  startDate   DateTime
+  endDate     DateTime
+  duration    String   // e.g., "10 days"
+  note        String?  @db.Text // Employee note / reason
+  status      String   @default("Pending") // Pending, Approved, Rejected
+  escalatedBy String?  // e.g., "Mark T."
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@map("leave_requests")
+}
+
+model PayrollAdjustment {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    User     @relation("EmployeePayroll", fields: [employeeId], references: [id], onDelete: Cascade)
+  type        String   // Overtime Bonus, etc.
+  amount      Float
+  reason      String
+  status      String   @default("Pending") // Pending, Approved, Rejected
+  escalatedBy String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@map("payroll_adjustments")
 }
