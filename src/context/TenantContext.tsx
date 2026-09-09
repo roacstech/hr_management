@@ -102,6 +102,8 @@ interface TenantContextValue {
   regularizePunch: (employeeId: string, date: string, checkIn: string, checkOut: string, status?: AttendanceRecord["status"]) => void;
   teamLeadProfile: TeamLeadProfile;
   updateTeamLeadProfile: (updates: Partial<TeamLeadProfile>) => TeamLeadProfile;
+  managerProfile: TeamLeadProfile;
+  updateManagerProfile: (updates: Partial<TeamLeadProfile>) => TeamLeadProfile;
 }
 
 const TenantContext = createContext<TenantContextValue | null>(null);
@@ -409,6 +411,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     return updated;
   };
 
+  const managerProfile = tenantStore.getManagerProfile(currentOrgId);
+
+  const updateManagerProfile = (updates: Partial<TeamLeadProfile>) => {
+    const updated = tenantStore.updateManagerProfile(currentOrgId, updates);
+    refreshState();
+    return updated;
+  };
+
   // Periodic check
   useEffect(() => {
     const handleStorage = () => refreshState();
@@ -480,6 +490,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         regularizePunch,
         teamLeadProfile,
         updateTeamLeadProfile,
+        managerProfile,
+        updateManagerProfile,
       }}
     >
       {children}
