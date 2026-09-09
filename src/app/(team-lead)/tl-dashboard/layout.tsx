@@ -6,7 +6,6 @@ import { useState, useEffect, useRef } from "react";
 import {
   AttendanceIcon,
   LeaveTrackerIcon,
-  TimeTrackerIcon,
   BuildingIcon,
   GearIcon,
   BellIcon,
@@ -24,9 +23,11 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
     currentOrg,
     notifications,
     markNotificationAsRead,
+    markAllNotificationsAsRead,
     clearAllNotifications,
     leaveRequests,
     timesheetCorrections,
+    teamLeadProfile,
     showToast,
   } = useTenant();
 
@@ -66,12 +67,6 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
       path: "/tl-dashboard/desk",
       icon: LeaveTrackerIcon,
       badge: totalPendingApprovals > 0 ? totalPendingApprovals : null,
-    },
-    {
-      name: "Timesheets",
-      path: "/tl-dashboard/timesheets",
-      icon: TimeTrackerIcon,
-      badge: null,
     },
     {
       name: "Team Space",
@@ -159,7 +154,7 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
                   >
                     <Icon className="w-[17px] h-[17px]" size={17} />
                     {item.badge && item.badge > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center shadow-xs ring-2 ring-[#12182c]">
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center shadow-xs ring-2 ring-[#12182c]">
                         {item.badge}
                       </span>
                     )}
@@ -214,7 +209,7 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
             {unreadNotificationsCount > 0 && (
               <span
                 suppressHydrationWarning
-                className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800"
+                className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700"
               >
                 {unreadNotificationsCount} New
               </span>
@@ -240,13 +235,27 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
             <>
               <div className="flex justify-between items-center px-1">
                 <span className="text-xs font-semibold text-gray-500">Live Team Feed</span>
-                <button
-                  type="button"
-                  onClick={() => clearAllNotifications()}
-                  className="text-xs text-blue-600 hover:underline font-medium cursor-pointer"
-                >
-                  Clear all
-                </button>
+                <div className="flex items-center space-x-2">
+                  {unreadNotificationsCount > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => markAllNotificationsAsRead()}
+                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer transition"
+                      >
+                        Mark all as read
+                      </button>
+                      <span className="text-gray-300">·</span>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => clearAllNotifications()}
+                    className="text-xs text-gray-500 hover:text-gray-800 hover:underline font-medium cursor-pointer transition"
+                  >
+                    Clear all
+                  </button>
+                </div>
               </div>
 
               {notifications.map((n) => (
@@ -259,15 +268,35 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
                       router.push(n.link);
                     }
                   }}
-                  className={`p-3.5 rounded-lg border text-xs space-y-1.5 transition cursor-pointer ${
+                  className={`p-3.5 rounded-lg border text-xs space-y-1.5 transition cursor-pointer group ${
                     !n.read
                       ? "bg-white border-amber-200 shadow-xs ring-1 ring-amber-50"
                       : "bg-white/80 border-gray-200/80 text-gray-600 opacity-80 hover:opacity-100"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-gray-900 leading-tight">{n.title}</span>
-                    <span className="text-[10px] text-gray-400 font-medium">{n.timestamp}</span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center space-x-1.5 min-w-0">
+                      {!n.read && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                      )}
+                      <span className="font-bold text-gray-900 leading-tight truncate">{n.title}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <span className="text-[10px] text-gray-400 font-medium">{n.timestamp}</span>
+                      {!n.read && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markNotificationAsRead(n.id);
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition cursor-pointer"
+                          title="Mark this notification as read"
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-gray-600 leading-relaxed text-[11.5px]">{n.message}</p>
                 </div>
@@ -281,17 +310,8 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
       <div className="flex-1 h-screen flex flex-col min-w-0 overflow-hidden">
         {/* Sleek Enterprise Top Navbar */}
         <header className="h-14 bg-[#141b34] border-b border-[#1e2748] flex items-center justify-between px-5 shrink-0 z-20 select-none">
-          {/* Left: Top Navbar Context */}
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                Team Lead Desk
-              </span>
-              <span className="text-gray-300 text-xs font-medium hidden sm:inline">
-                {currentOrg?.name || "Roacs Corporation"} • Frontend & Core Engineering
-              </span>
-            </div>
-          </div>
+          {/* Left: Top Navbar Left Spacer */}
+          <div className="flex items-center space-x-3" />
 
           {/* TOP RIGHT CORNER MENUS */}
           <div className="flex items-center space-x-2 sm:space-x-3">
@@ -337,14 +357,6 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
                   >
                     <AttendanceIcon className="w-4 h-4 mr-2.5 text-gray-400 group-hover:text-blue-600 transition-colors shrink-0" size={16} />
                     <span>Track Live Shifts</span>
-                  </Link>
-                  <Link
-                    href="/tl-dashboard/timesheets"
-                    onClick={() => setIsQuickAddOpen(false)}
-                    className="flex items-center px-3 py-2 text-xs font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition group"
-                  >
-                    <TimeTrackerIcon className="w-4 h-4 mr-2.5 text-gray-400 group-hover:text-blue-600 transition-colors shrink-0" size={16} />
-                    <span>Submit Timesheets</span>
                   </Link>
                   <Link
                     href="/tl-dashboard/cms"
@@ -409,32 +421,52 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
                 className="w-8 h-8 rounded-lg border border-amber-400/40 hover:border-amber-400 bg-amber-500/10 transition cursor-pointer flex items-center justify-center focus:outline-none overflow-hidden"
                 title="Team Lead Profile"
               >
-                <span className="text-amber-300 text-xs font-black">SC</span>
+                {teamLeadProfile?.profileImageUrl ? (
+                  <img
+                    src={teamLeadProfile.profileImageUrl}
+                    alt={teamLeadProfile?.name || "TL"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-amber-300 text-xs font-black">
+                    {teamLeadProfile?.avatar || "SC"}
+                  </span>
+                )}
               </button>
 
               {isProfileMenuOpen && (
                 <div className="absolute right-0 mt-3 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
                   <div className="px-4 py-2.5 border-b border-gray-100 flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-xs">
-                      SC
+                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-xs overflow-hidden shrink-0">
+                      {teamLeadProfile?.profileImageUrl ? (
+                        <img
+                          src={teamLeadProfile.profileImageUrl}
+                          alt={teamLeadProfile?.name || "TL"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        teamLeadProfile?.avatar || "SC"
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-gray-900 leading-tight truncate">Sarah Chen</p>
+                      <p className="font-bold text-gray-900 leading-tight truncate">
+                        {teamLeadProfile?.name || "Sarah Chen"}
+                      </p>
                       <p className="text-[11px] text-gray-500 truncate leading-tight mt-0.5">
-                        Frontend Tech Lead
+                        {teamLeadProfile?.designation || "Frontend Tech Lead"}
                       </p>
                       <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
-                        Team Lead
+                        {teamLeadProfile?.role || "Team Lead"}
                       </span>
                     </div>
                   </div>
                   <Link
-                    href="/tl-dashboard/roster"
+                    href="/tl-dashboard/profile"
                     onClick={() => setIsProfileMenuOpen(false)}
                     className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition font-medium"
                   >
                     <UserAvatarIcon className="w-3.5 h-3.5 mr-2 text-gray-400" size={15} />
-                    Direct Team Roster
+                    My Profile
                   </Link>
                   <button
                     type="button"
@@ -505,7 +537,7 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
               <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70 text-amber-950">
                 <p className="font-bold text-[11px] uppercase tracking-wider text-amber-800">Assigned Team Scope</p>
                 <p className="font-extrabold text-sm text-gray-900 mt-0.5">Frontend & Cloud Platform Team</p>
-                <p className="text-[11px] text-gray-600 mt-0.5">Lead: Sarah Chen • 6 Direct Reports • Roacs Corporation</p>
+                <p className="text-[11px] text-gray-600 mt-0.5">Lead: {teamLeadProfile?.name || "Sarah Chen"} • {teamLeadProfile?.directReportsCount ?? 6} Direct Reports • {currentOrg.name}</p>
               </div>
 
               {/* Grace Period */}

@@ -24,6 +24,7 @@ function ManagerPortalLayoutContent({ children }: { children: React.ReactNode })
   const {
     notifications,
     markNotificationAsRead,
+    markAllNotificationsAsRead,
     clearAllNotifications,
   } = useTenant();
 
@@ -200,13 +201,27 @@ function ManagerPortalLayoutContent({ children }: { children: React.ReactNode })
             <>
               <div className="flex justify-between items-center px-1">
                 <span className="text-xs font-semibold text-gray-500">Activity Stream</span>
-                <button
-                  type="button"
-                  onClick={() => clearAllNotifications()}
-                  className="text-xs text-blue-600 hover:underline font-medium"
-                >
-                  Clear all
-                </button>
+                <div className="flex items-center space-x-2">
+                  {unreadNotificationsCount > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => markAllNotificationsAsRead()}
+                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer transition"
+                      >
+                        Mark all as read
+                      </button>
+                      <span className="text-gray-300">·</span>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => clearAllNotifications()}
+                    className="text-xs text-gray-500 hover:text-gray-800 hover:underline font-medium cursor-pointer transition"
+                  >
+                    Clear all
+                  </button>
+                </div>
               </div>
 
               {notifications.map((n) => (
@@ -219,15 +234,35 @@ function ManagerPortalLayoutContent({ children }: { children: React.ReactNode })
                       router.push(n.link);
                     }
                   }}
-                  className={`p-3.5 rounded-lg border text-xs space-y-1.5 transition cursor-pointer ${
+                  className={`p-3.5 rounded-lg border text-xs space-y-1.5 transition cursor-pointer group ${
                     !n.read
                       ? "bg-white border-blue-200 shadow-xs ring-1 ring-blue-50"
                       : "bg-white/80 border-gray-200/80 text-gray-600 opacity-80 hover:opacity-100"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-gray-900 leading-tight">{n.title}</span>
-                    <span className="text-[10px] text-gray-400 font-medium">{n.timestamp}</span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center space-x-1.5 min-w-0">
+                      {!n.read && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                      )}
+                      <span className="font-bold text-gray-900 leading-tight truncate">{n.title}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <span className="text-[10px] text-gray-400 font-medium">{n.timestamp}</span>
+                      {!n.read && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markNotificationAsRead(n.id);
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition cursor-pointer"
+                          title="Mark as read"
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-gray-600 leading-relaxed text-[11.5px]">{n.message}</p>
                 </div>
