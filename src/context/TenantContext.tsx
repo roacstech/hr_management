@@ -27,6 +27,7 @@ import {
   TeamSpacePost,
   TeamSpaceComment,
 } from "@/lib/types";
+import { TeamLeadProfile } from "@/lib/mock-data";
 import { tenantStore } from "@/lib/tenant-store";
 
 interface ToastMessage {
@@ -84,6 +85,7 @@ interface TenantContextValue {
   createArticle: (art: Omit<KnowledgeBaseArticle, "id" | "organizationId" | "publishedDate" | "lastUpdated" | "viewCount">) => KnowledgeBaseArticle;
   updateArticle: (id: string, updates: Partial<KnowledgeBaseArticle>) => KnowledgeBaseArticle;
   markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
   clearAllNotifications: () => void;
   refreshState: () => void;
 
@@ -98,6 +100,8 @@ interface TenantContextValue {
   togglePostReaction: (postId: string, emoji: string, userName?: string) => void;
   addPostComment: (postId: string, comment: Omit<TeamSpaceComment, "id" | "timestamp">) => TeamSpaceComment;
   regularizePunch: (employeeId: string, date: string, checkIn: string, checkOut: string, status?: AttendanceRecord["status"]) => void;
+  teamLeadProfile: TeamLeadProfile;
+  updateTeamLeadProfile: (updates: Partial<TeamLeadProfile>) => TeamLeadProfile;
 }
 
 const TenantContext = createContext<TenantContextValue | null>(null);
@@ -323,6 +327,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     refreshState();
   };
 
+  const markAllNotificationsAsRead = () => {
+    tenantStore.markAllNotificationsAsRead(currentOrgId);
+    refreshState();
+    showToast("All notifications marked as read.");
+  };
+
   const clearAllNotifications = () => {
     tenantStore.clearAllNotifications(currentOrgId);
     refreshState();
@@ -391,6 +401,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     showToast("Attendance regularized successfully.");
   };
 
+  const teamLeadProfile = tenantStore.getTeamLeadProfile(currentOrgId);
+
+  const updateTeamLeadProfile = (updates: Partial<TeamLeadProfile>) => {
+    const updated = tenantStore.updateTeamLeadProfile(currentOrgId, updates);
+    refreshState();
+    return updated;
+  };
+
   // Periodic check
   useEffect(() => {
     const handleStorage = () => refreshState();
@@ -447,6 +465,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         createArticle,
         updateArticle,
         markNotificationAsRead,
+        markAllNotificationsAsRead,
         clearAllNotifications,
         refreshState,
         approveTimesheetCorrection,
@@ -459,6 +478,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         togglePostReaction,
         addPostComment,
         regularizePunch,
+        teamLeadProfile,
+        updateTeamLeadProfile,
       }}
     >
       {children}

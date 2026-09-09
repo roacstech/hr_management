@@ -45,6 +45,8 @@ import {
   initialTimesheetCorrections,
   initialTeamTimesheets,
   initialTeamSpacePosts,
+  TeamLeadProfile,
+  defaultTeamLeadProfile,
 } from "./mock-data";
 
 export interface TenantDataState {
@@ -67,6 +69,7 @@ export interface TenantDataState {
   timesheetCorrections: TimesheetCorrectionRequest[];
   teamTimesheets: TeamMemberTimesheet[];
   teamSpacePosts: TeamSpacePost[];
+  teamLeadProfile: TeamLeadProfile;
 }
 
 const STORAGE_KEY = "crewsync_enterprise_hrms_v1";
@@ -164,6 +167,7 @@ export class TenantDataStore {
       timesheetCorrections: initialTimesheetCorrections,
       teamTimesheets: initialTeamTimesheets,
       teamSpacePosts: initialTeamSpacePosts,
+      teamLeadProfile: defaultTeamLeadProfile,
     };
   }
 
@@ -173,13 +177,27 @@ export class TenantDataStore {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
+        const storedLeaves = parsed.leaveRequests || initialLeaveRequests;
+        const storedLeaveIds = new Set(storedLeaves.map((l: any) => l.id));
+        const mergedLeaves = [
+          ...storedLeaves,
+          ...initialLeaveRequests.filter((l) => !storedLeaveIds.has(l.id)),
+        ];
+
+        const storedCorrections = parsed.timesheetCorrections || initialTimesheetCorrections;
+        const storedCorrIds = new Set(storedCorrections.map((c: any) => c.id));
+        const mergedCorrections = [
+          ...storedCorrections,
+          ...initialTimesheetCorrections.filter((c) => !storedCorrIds.has(c.id)),
+        ];
+
         this.state = {
           organizations: parsed.organizations || initialOrganizations,
           departments: parsed.departments || initialDepartments,
           teams: parsed.teams || initialTeams,
           employees: parsed.employees || initialEmployees,
           leavePolicies: parsed.leavePolicies || initialLeavePolicies,
-          leaveRequests: parsed.leaveRequests || initialLeaveRequests,
+          leaveRequests: mergedLeaves,
           attendanceRecords: parsed.attendanceRecords || initialAttendanceRecords,
           workShifts: parsed.workShifts || initialWorkShifts,
           attendanceRules: parsed.attendanceRules || { "org-roacs": initialAttendanceRules },
@@ -190,9 +208,10 @@ export class TenantDataStore {
           auditLogs: parsed.auditLogs || initialAuditLogs,
           notifications: parsed.notifications || initialNotifications,
           invoices: parsed.invoices || initialSubscriptionInvoices,
-          timesheetCorrections: parsed.timesheetCorrections || initialTimesheetCorrections,
+          timesheetCorrections: mergedCorrections,
           teamTimesheets: parsed.teamTimesheets || initialTeamTimesheets,
           teamSpacePosts: parsed.teamSpacePosts || initialTeamSpacePosts,
+          teamLeadProfile: parsed.teamLeadProfile ? { ...defaultTeamLeadProfile, ...parsed.teamLeadProfile } : defaultTeamLeadProfile,
         };
       }
       const savedOrg = localStorage.getItem("crewsync_active_org");
@@ -940,12 +959,46 @@ export class TenantDataStore {
     }
   }
 
+  public markAllNotificationsAsRead(orgId: string) {
+    let changed = false;
+    for (const notif of this.state.notifications) {
+      if (notif.organizationId === orgId && !notif.read) {
+        notif.read = true;
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.persist();
+    }
+  }
+
   public clearAllNotifications(orgId: string) {
     this.state.notifications = this.state.notifications.filter((n) => n.organizationId !== orgId);
     this.persist();
   }
 
   // --- Team Lead Operations ---
+  public getTeamLeadProfile(orgId?: string): TeamLeadProfile {
+    return this.state.teamLeadProfile || defaultTeamLeadProfile;
+  }
+
+  public updateTeamLeadProfile(orgId: string, updates: Partial<TeamLeadProfile>): TeamLeadProfile {
+    const current = this.state.teamLeadProfile || defaultTeamLeadProfile;
+    const firstName = updates.firstName !== undefined ? updates.firstName : current.firstName;
+    const lastName = updates.lastName !== undefined ? updates.lastName : current.lastName;
+    const derivedName = firstName && lastName ? `${firstName} ${lastName}`.trim() : (updates.name || current.name);
+    const derivedAvatar = firstName && lastName ? `${firstName[0]}${lastName[0]}`.toUpperCase() : (updates.avatar || current.avatar);
+
+    this.state.teamLeadProfile = {
+      ...current,
+      ...updates,
+      name: derivedName,
+      avatar: derivedAvatar,
+    };
+    this.persist();
+    return this.state.teamLeadProfile;
+  }
+
   public getTimesheetCorrections(orgId: string): TimesheetCorrectionRequest[] {
     return (this.state.timesheetCorrections || []).filter((c) => c.organizationId === orgId);
   }
@@ -1016,6 +1069,7 @@ export class TenantDataStore {
       item.status = "Rejected";
       item.reviewedBy = reviewerName;
       item.reviewedAt = new Date().toISOString();
+      if (reason) item.rejectionReason = reason;
       this.persist();
       this.addNotification(orgId, {
         title: "Leave Request Rejected",
@@ -1144,7 +1198,7 @@ export class TenantDataStore {
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY);
     }
-    this.state = this.loadState();
+    this.state = this.getInitialState();
   }
 }
 

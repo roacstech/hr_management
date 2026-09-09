@@ -165,6 +165,7 @@ export interface LeaveRequest {
   appliedAt: string;
   reviewedBy?: string;
   reviewedAt?: string;
+  rejectionReason?: string;
 }
 
 export interface AttendanceRecord {

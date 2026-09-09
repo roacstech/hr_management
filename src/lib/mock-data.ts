@@ -894,6 +894,150 @@ export const initialLeaveRequests: LeaveRequest[] = [
     status: "Pending",
     appliedAt: "2026-09-05T14:40:00Z",
   },
+  {
+    id: "lr-104",
+    organizationId: "org-roacs",
+    employeeId: "emp-103",
+    employeeName: "Liam O'Connor",
+    employeeAvatar: "LO",
+    leaveTypeId: "lt-annual",
+    leaveTypeName: "Annual Leave",
+    startDate: "2026-09-18",
+    endDate: "2026-09-19",
+    days: 2,
+    reason: "Family wedding and out-of-state travel",
+    status: "Pending",
+    appliedAt: "2026-09-07T11:00:00Z",
+  },
+  {
+    id: "lr-105",
+    organizationId: "org-roacs",
+    employeeId: "emp-111",
+    employeeName: "Elena Rostova",
+    employeeAvatar: "ER",
+    leaveTypeId: "lt-sick",
+    leaveTypeName: "Sick Leave",
+    startDate: "2026-09-10",
+    endDate: "2026-09-11",
+    days: 2,
+    reason: "High fever and prescribed medical bed rest",
+    status: "Pending",
+    appliedAt: "2026-09-08T08:30:00Z",
+  },
+  {
+    id: "lr-106",
+    organizationId: "org-roacs",
+    employeeId: "emp-102",
+    employeeName: "David Chen",
+    employeeAvatar: "DC",
+    leaveTypeId: "lt-casual",
+    leaveTypeName: "Casual Leave",
+    startDate: "2026-09-22",
+    endDate: "2026-09-22",
+    days: 1,
+    reason: "Personal bank documentation & passport renewal appointment",
+    status: "Pending",
+    appliedAt: "2026-09-08T09:15:00Z",
+  },
+  {
+    id: "lr-107",
+    organizationId: "org-roacs",
+    employeeId: "emp-106",
+    employeeName: "Maya Lin",
+    employeeAvatar: "ML",
+    leaveTypeId: "lt-annual",
+    leaveTypeName: "Annual Leave",
+    startDate: "2026-09-25",
+    endDate: "2026-09-28",
+    days: 4,
+    reason: "Product Design conference attendee pass in Austin",
+    status: "Approved",
+    appliedAt: "2026-09-01T14:00:00Z",
+    reviewedBy: "Sarah Chen",
+    reviewedAt: "2026-09-02T10:00:00Z",
+  },
+  {
+    id: "lr-108",
+    organizationId: "org-roacs",
+    employeeId: "emp-112",
+    employeeName: "Tariq Mansoor",
+    employeeAvatar: "TM",
+    leaveTypeId: "lt-sick",
+    leaveTypeName: "Sick Leave",
+    startDate: "2026-09-03",
+    endDate: "2026-09-03",
+    days: 1,
+    reason: "Acute migraine episode",
+    status: "Rejected",
+    appliedAt: "2026-09-03T07:45:00Z",
+    rejectionReason: "Critical client deployment day; please submit medical slip",
+    reviewedBy: "Sarah Chen",
+    reviewedAt: "2026-09-03T11:30:00Z",
+  },
+  {
+    id: "lr-109",
+    organizationId: "org-roacs",
+    employeeId: "emp-109",
+    employeeName: "Devanshi Joshi",
+    employeeAvatar: "DJ",
+    leaveTypeId: "lt-annual",
+    leaveTypeName: "Annual Leave",
+    startDate: "2026-09-21",
+    endDate: "2026-09-25",
+    days: 5,
+    reason: "Annual family pilgrimage and holiday trip",
+    status: "Pending",
+    appliedAt: "2026-09-08T15:00:00Z",
+  },
+  {
+    id: "lr-110",
+    organizationId: "org-roacs",
+    employeeId: "emp-110",
+    employeeName: "James Wilson",
+    employeeAvatar: "JW",
+    leaveTypeId: "lt-casual",
+    leaveTypeName: "Casual Leave",
+    startDate: "2026-09-14",
+    endDate: "2026-09-14",
+    days: 1,
+    reason: "Home electrical inspection and repair work",
+    status: "Approved",
+    appliedAt: "2026-09-04T12:00:00Z",
+    reviewedBy: "Sarah Chen",
+    reviewedAt: "2026-09-05T09:00:00Z",
+  },
+  {
+    id: "lr-111",
+    organizationId: "org-roacs",
+    employeeId: "emp-101",
+    employeeName: "Sophia Williams",
+    employeeAvatar: "SW",
+    leaveTypeId: "lt-sick",
+    leaveTypeName: "Sick Leave",
+    startDate: "2026-08-28",
+    endDate: "2026-08-28",
+    days: 1,
+    reason: "Seasonal allergy checkup and doctor consultation",
+    status: "Approved",
+    appliedAt: "2026-08-27T16:20:00Z",
+    reviewedBy: "Sarah Chen",
+    reviewedAt: "2026-08-27T18:00:00Z",
+  },
+  {
+    id: "lr-112",
+    organizationId: "org-roacs",
+    employeeId: "emp-105",
+    employeeName: "Carlos Mendez",
+    employeeAvatar: "CM",
+    leaveTypeId: "lt-casual",
+    leaveTypeName: "Casual Leave",
+    startDate: "2026-09-29",
+    endDate: "2026-09-30",
+    days: 2,
+    reason: "Relocation assistance for elderly parents",
+    status: "Pending",
+    appliedAt: "2026-09-08T16:30:00Z",
+  },
 ];
 
 export const initialAttendanceRecords: AttendanceRecord[] = [
@@ -1659,6 +1803,119 @@ export const initialTimesheetCorrections: TimesheetCorrectionRequest[] = [
     reviewedBy: "Sarah Chen",
     reviewedAt: "2026-09-02T10:30:00Z",
   },
+  {
+    id: "corr-105",
+    organizationId: "org-roacs",
+    employeeId: "emp-111",
+    employeeName: "Elena Rostova",
+    employeeAvatar: "ER",
+    date: "2026-09-07",
+    type: "Missing Punch-Out",
+    requestedTime: "06:30 PM",
+    reason: "Stayed late to patch staging server issue before morning QA cut.",
+    status: "Pending",
+    appliedAt: "2026-09-07T20:10:00Z",
+  },
+  {
+    id: "corr-106",
+    organizationId: "org-roacs",
+    employeeId: "emp-102",
+    employeeName: "David Chen",
+    employeeAvatar: "DC",
+    date: "2026-09-08",
+    type: "Late Regularization",
+    originalTime: "09:45 AM",
+    requestedTime: "09:00 AM",
+    reason: "Subway signal failure on line 4, joined team standup via mobile.",
+    status: "Pending",
+    appliedAt: "2026-09-08T10:00:00Z",
+  },
+  {
+    id: "corr-107",
+    organizationId: "org-roacs",
+    employeeId: "emp-106",
+    employeeName: "Maya Lin",
+    employeeAvatar: "ML",
+    date: "2026-09-03",
+    type: "WFH Adjustment",
+    requestedTime: "09:00 AM - 06:00 PM",
+    reason: "Pre-approved remote work for UX user research testing day.",
+    status: "Approved",
+    appliedAt: "2026-09-03T18:30:00Z",
+    reviewedBy: "Sarah Chen",
+    reviewedAt: "2026-09-04T09:15:00Z",
+  },
+  {
+    id: "corr-108",
+    organizationId: "org-roacs",
+    employeeId: "emp-112",
+    employeeName: "Tariq Mansoor",
+    employeeAvatar: "TM",
+    date: "2026-09-08",
+    type: "Missing Punch-In",
+    requestedTime: "09:00 AM",
+    reason: "Biometric terminal failed to read thumbprint on gate 2.",
+    status: "Pending",
+    appliedAt: "2026-09-08T11:20:00Z",
+  },
+  {
+    id: "corr-109",
+    organizationId: "org-roacs",
+    employeeId: "emp-109",
+    employeeName: "Devanshi Joshi",
+    employeeAvatar: "DJ",
+    date: "2026-09-05",
+    type: "Late Regularization",
+    originalTime: "09:50 AM",
+    requestedTime: "09:15 AM",
+    reason: "Ride share breakdown during morning commute.",
+    status: "Rejected",
+    rejectionReason: "Grace period quota already exceeded this pay cycle.",
+    appliedAt: "2026-09-05T10:30:00Z",
+    reviewedBy: "Sarah Chen",
+    reviewedAt: "2026-09-05T14:00:00Z",
+  },
+  {
+    id: "corr-110",
+    organizationId: "org-roacs",
+    employeeId: "emp-110",
+    employeeName: "James Wilson",
+    employeeAvatar: "JW",
+    date: "2026-09-07",
+    type: "Missing Punch-Out",
+    requestedTime: "07:00 PM",
+    reason: "Campus power switchover caused biometric kiosk reset at 6:00 PM.",
+    status: "Pending",
+    appliedAt: "2026-09-07T21:00:00Z",
+  },
+  {
+    id: "corr-111",
+    organizationId: "org-roacs",
+    employeeId: "emp-108",
+    employeeName: "Rachel Kim",
+    employeeAvatar: "RK",
+    date: "2026-09-01",
+    type: "Missing Punch-In",
+    requestedTime: "08:55 AM",
+    reason: "Security badge reprogramming in HR front desk office.",
+    status: "Approved",
+    appliedAt: "2026-09-01T09:10:00Z",
+    reviewedBy: "Sarah Chen",
+    reviewedAt: "2026-09-01T10:00:00Z",
+  },
+  {
+    id: "corr-112",
+    organizationId: "org-roacs",
+    employeeId: "emp-103",
+    employeeName: "Liam O'Connor",
+    employeeAvatar: "LO",
+    date: "2026-09-06",
+    type: "WFH Adjustment",
+    requestedTime: "09:00 AM - 05:30 PM",
+    reason: "On-call weekend emergency production triage.",
+    status: "Pending",
+    appliedAt: "2026-09-06T18:00:00Z",
+  },
 ];
 
 export const initialTeamTimesheets: TeamMemberTimesheet[] = [
@@ -1821,4 +2078,160 @@ export const initialTeamSpacePosts: TeamSpacePost[] = [
     ],
   },
 ];
+
+export interface WorkExperience {
+  id: string;
+  companyName: string;
+  jobTitle: string;
+  fromDate: string;
+  toDate: string;
+  jobDescription: string;
+  relevant: boolean;
+}
+
+export interface EducationDetail {
+  id: string;
+  instituteName: string;
+  degree: string;
+  specialization: string;
+  dateOfCompletion: string;
+}
+
+export interface DependentDetail {
+  id: string;
+  name: string;
+  relationship: string;
+  dateOfBirth: string;
+}
+
+export interface TeamLeadProfile {
+  id: string;
+  employeeId: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  nickName: string;
+  avatar: string;
+  email: string;
+  personalEmail: string;
+  phone: string;
+  designation: string;
+  role: string;
+  department: string;
+  team: string;
+  workLocation: string;
+  reportingManager: string;
+  joiningDate: string;
+  employmentType: string;
+  employeeStatus: string;
+  sourceOfHire: string;
+  currentExperience: string;
+  totalExperience: string;
+  shiftHours: string;
+  bio: string;
+  address: string;
+  presentAddress: string;
+  permanentAddress: string;
+  workPhone: string;
+  extension: string;
+  seatingLocation: string;
+  tags: string[];
+  dateOfBirth: string;
+  gender: string;
+  maritalStatus: string;
+  expertise: string;
+  uan: string;
+  pan: string;
+  aadhaar: string;
+  emergencyContact: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+  skills: string[];
+  directReportsCount: number;
+  profileImageUrl?: string;
+  workExperience: WorkExperience[];
+  educationDetails: EducationDetail[];
+  dependentDetails: DependentDetail[];
+}
+
+export const defaultTeamLeadProfile: TeamLeadProfile = {
+  id: "emp-tl-001",
+  employeeId: "RC-TL-1002",
+  name: "Sarah Chen",
+  firstName: "Sarah",
+  lastName: "Chen",
+  nickName: "Sara",
+  avatar: "SC",
+  profileImageUrl: "",
+  email: "sarah.chen@roacscorp.com",
+  personalEmail: "sarah.chen.tech@gmail.com",
+  phone: "+1 (555) 349-8821",
+  designation: "Frontend Tech Lead",
+  role: "Team Lead",
+  department: "Engineering",
+  team: "Frontend Engineering & UI Systems",
+  workLocation: "San Francisco HQ (Hybrid)",
+  reportingManager: "Amira Patel (VP of Engineering)",
+  joiningDate: "2021-01-10",
+  employmentType: "Full Time",
+  employeeStatus: "Active",
+  sourceOfHire: "LinkedIn",
+  currentExperience: "4 Years 8 Months",
+  totalExperience: "7 Years 2 Months",
+  shiftHours: "09:00 AM - 06:00 PM (15m Grace)",
+  bio: "Frontend Tech Lead with 7+ years of experience leading UI architecture, design systems, and cross-functional web engineering teams. Passionate about performant user interfaces, mentorship, and developer productivity.",
+  address: "450 Mission Street, Suite 1200, San Francisco, CA 94105",
+  presentAddress: "450 Mission Street, Suite 1200, San Francisco, CA 94105",
+  permanentAddress: "128 Pine Street, Apt 4B, San Francisco, CA 94111",
+  workPhone: "+1 (415) 600-1002",
+  extension: "1002",
+  seatingLocation: "Floor 4, Desk 14B",
+  tags: ["Frontend", "Tech Lead", "UI Architecture"],
+  dateOfBirth: "1993-07-15",
+  gender: "Female",
+  maritalStatus: "Single",
+  expertise: "React, UI Architecture, Design Systems",
+  uan: "••••••••••",
+  pan: "••••••••••",
+  aadhaar: "••••••••••",
+  emergencyContact: {
+    name: "David Chen",
+    relationship: "Brother",
+    phone: "+1 (555) 881-2290",
+  },
+  skills: ["React 19", "Next.js", "TypeScript", "Tailwind CSS", "Architecture", "Design Systems", "Code Review", "Team Mentorship"],
+  directReportsCount: 6,
+  workExperience: [
+    {
+      id: "we-001",
+      companyName: "TechVision Labs",
+      jobTitle: "Senior Frontend Engineer",
+      fromDate: "2018-06-01",
+      toDate: "2020-12-31",
+      jobDescription: "Led frontend development for SaaS product dashboard, built React component library.",
+      relevant: true,
+    },
+    {
+      id: "we-002",
+      companyName: "NexaUI Inc.",
+      jobTitle: "Frontend Developer",
+      fromDate: "2016-08-01",
+      toDate: "2018-05-31",
+      jobDescription: "Built responsive web applications and maintained UI design systems.",
+      relevant: true,
+    },
+  ],
+  educationDetails: [
+    {
+      id: "ed-001",
+      instituteName: "UC Berkeley",
+      degree: "B.S. Computer Science",
+      specialization: "Human-Computer Interaction",
+      dateOfCompletion: "2016-05-15",
+    },
+  ],
+  dependentDetails: [],
+};
 
