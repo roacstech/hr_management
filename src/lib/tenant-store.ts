@@ -180,11 +180,13 @@ export class TenantDataStore {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        const storedLeaves = parsed.leaveRequests || initialLeaveRequests;
+        const storedLeaves = (parsed.leaveRequests || initialLeaveRequests).filter(
+          (l: any) => !l.id?.startsWith("lr-tl-")
+        );
         const storedLeaveIds = new Set(storedLeaves.map((l: any) => l.id));
         const mergedLeaves = [
           ...storedLeaves,
-          ...initialLeaveRequests.filter((l) => !storedLeaveIds.has(l.id)),
+          ...initialLeaveRequests.filter((l) => !storedLeaveIds.has(l.id) && !l.id?.startsWith("lr-tl-")),
         ];
 
         const storedCorrections = parsed.timesheetCorrections || initialTimesheetCorrections;
@@ -193,6 +195,20 @@ export class TenantDataStore {
           ...storedCorrections,
           ...initialTimesheetCorrections.filter((c) => !storedCorrIds.has(c.id)),
         ];
+
+        let loadedTlProfile = parsed.teamLeadProfile ? { ...defaultTeamLeadProfile, ...parsed.teamLeadProfile } : defaultTeamLeadProfile;
+        if (loadedTlProfile.uan === "••••••••••" || loadedTlProfile.uan === "100904928192") loadedTlProfile.uan = "";
+        if (loadedTlProfile.pan === "••••••••••" || loadedTlProfile.pan === "AAAPL1234C") loadedTlProfile.pan = "";
+        if (loadedTlProfile.aadhaar === "••••••••••" || loadedTlProfile.aadhaar === "•••• •••• 9921") loadedTlProfile.aadhaar = "";
+        if (Array.isArray(loadedTlProfile.workExperience) && loadedTlProfile.workExperience.some((w: any) => w.id === "we-001" || w.companyName === "Tech Mahindra Ltd")) {
+          loadedTlProfile.workExperience = [];
+        }
+        if (Array.isArray(loadedTlProfile.educationDetails) && loadedTlProfile.educationDetails.some((e: any) => e.id === "ed-001" || e.instituteName === "Anna University")) {
+          loadedTlProfile.educationDetails = [];
+        }
+        if (Array.isArray(loadedTlProfile.dependentDetails) && loadedTlProfile.dependentDetails.some((d: any) => d.id === "dep-001")) {
+          loadedTlProfile.dependentDetails = [];
+        }
 
         this.state = {
           organizations: parsed.organizations || initialOrganizations,
@@ -214,7 +230,7 @@ export class TenantDataStore {
           timesheetCorrections: mergedCorrections,
           teamTimesheets: parsed.teamTimesheets || initialTeamTimesheets,
           teamSpacePosts: parsed.teamSpacePosts || initialTeamSpacePosts,
-          teamLeadProfile: parsed.teamLeadProfile ? { ...defaultTeamLeadProfile, ...parsed.teamLeadProfile } : defaultTeamLeadProfile,
+          teamLeadProfile: loadedTlProfile,
           managerProfile: parsed.managerProfile ? { ...defaultManagerProfile, ...parsed.managerProfile } : defaultManagerProfile,
         };
       }

@@ -49,6 +49,7 @@ model User {
   sessions           Session[]
   leaveRequests      LeaveRequest[]      @relation("EmployeeLeave")
   payrollAdjustments PayrollAdjustment[] @relation("EmployeePayroll")
+  attendanceRecords  AttendanceRecord[]  @relation("EmployeeAttendance")
 
   @@index([organizationId])
   @@map("users")
@@ -128,3 +129,23 @@ model PayrollAdjustment {
   @@index([employeeId])
   @@map("payroll_adjustments")
 }
+
+model AttendanceRecord {
+  id             String    @id @default(cuid())
+  employeeId     String
+  employee       User      @relation("EmployeeAttendance", fields: [employeeId], references: [id], onDelete: Cascade)
+  organizationId String?
+  date           String    // YYYY-MM-DD
+  checkIn        DateTime?
+  checkOut       DateTime?
+  workHours      Float     @default(0) // total hours worked
+  status         String    @default("Present") // Present, Late, On Time, Missing Punch
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+  @@map("attendance_records")
+}
+

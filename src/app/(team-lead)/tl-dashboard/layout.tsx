@@ -341,15 +341,31 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
                 title="Quick Action"
               >
                 <PlusIcon className="w-3.5 h-3.5 text-white" size={14} />
-                <span className="hidden sm:inline">Quick Action</span>
+                {/* <span className="hidden sm:inline"></span> */}
               </button>
 
               {/* Quick Add Dropdown Menu */}
               {isQuickAddOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 z-50 animate-in fade-in zoom-in-95 duration-100 select-none">
                   <div className="px-3 py-1.5 border-b border-gray-100 mb-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Team Lead Shortcuts</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-700">Team Lead Shortcuts</p>
                   </div>
+                  <Link
+                    href="/tl-dashboard/apply-leave"
+                    onClick={() => setIsQuickAddOpen(false)}
+                    className="flex items-center px-3 py-2 text-xs font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition group"
+                  >
+                    <LeaveTrackerIcon className="w-4 h-4 mr-2.5 text-gray-400 group-hover:text-blue-600 transition-colors shrink-0" size={16} />
+                    <span>My Leave</span>
+                  </Link>
+                  <Link
+                    href="/tl-dashboard/attendance"
+                    onClick={() => setIsQuickAddOpen(false)}
+                    className="flex items-center px-3 py-2 text-xs font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition group"
+                  >
+                    <TimeTrackerIcon className="w-4 h-4 mr-2.5 text-gray-400 group-hover:text-blue-600 transition-colors shrink-0" size={16} />
+                    <span>My Attendance</span>
+                  </Link>
                   <Link
                     href="/tl-dashboard/desk"
                     onClick={() => setIsQuickAddOpen(false)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTenant } from "@/context/TenantContext";
 import { TimeTrackerIcon } from "@/components/SidebarIcons";
 
@@ -10,57 +10,87 @@ interface TLAttendanceRecord {
   checkIn: string;
   checkOut: string | null;
   totalHours: string;
-  status: "On Time" | "Late" | "Missing Punch";
+  status: "On Time" | "Late" | "Missing Punch" | "Present";
 }
-
-const dummyAttendance: TLAttendanceRecord[] = Array.from({ length: 45 }).map((_, i) => {
-  const d = new Date();
-  d.setDate(d.getDate() - i);
-  const dateStr = d.toISOString().split("T")[0];
-  
-  // Randomize some statuses
-  let status: "On Time" | "Late" | "Missing Punch" = "On Time";
-  let checkIn = "09:00 AM";
-  let checkOut: string | null = "06:00 PM";
-  let totalHours = "9h 00m";
-
-  if (i % 12 === 0) {
-    status = "Late";
-    checkIn = "09:30 AM";
-    totalHours = "8h 30m";
-  } else if (i % 20 === 0) {
-    status = "Missing Punch";
-    checkOut = null;
-    totalHours = "--";
-  }
-
-  return {
-    id: `tl-att-${i}`,
-    date: dateStr,
-    checkIn,
-    checkOut,
-    totalHours,
-    status,
-  };
-});
 
 export default function TLAttendancePage() {
   const { teamLeadProfile } = useTenant();
+  const [dbRecords, setDbRecords] = useState<TLAttendanceRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-  const totalPages = Math.ceil(dummyAttendance.length / pageSize);
 
-  const paginatedData = dummyAttendance.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const fetchAttendance = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/team-lead/attendance?history=true");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.history)) {
+          const mapped: TLAttendanceRecord[] = data.history.map(
+            (r: {
+              id: string;
+              date: string;
+              checkIn: string | null;
+              checkOut: string | null;
+              workHours: number;
+              status: string;
+            }) => ({
+              id: r.id,
+              date: r.date,
+              checkIn: r.checkIn
+                ? new Date(r.checkIn).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "--",
+              checkOut: r.checkOut
+                ? new Date(r.checkOut).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : r.checkIn
+                ? "In Progress"
+                : "--",
+              totalHours:
+                r.workHours > 0
+                  ? `${r.workHours}h`
+                  : r.checkIn && !r.checkOut
+                  ? "Tracking..."
+                  : "--",
+              status: (r.status === "Present" ? "On Time" : r.status) as TLAttendanceRecord["status"],
+            })
+          );
+          setDbRecords(mapped);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load DB attendance history:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAttendance();
+    const handleUpdate = () => fetchAttendance();
+    window.addEventListener("attendance-updated", handleUpdate);
+    return () => window.removeEventListener("attendance-updated", handleUpdate);
+  }, [fetchAttendance]);
+
+  // Only real DB records are shown
+  const attendanceList = dbRecords;
+
+  const totalPages = Math.max(1, Math.ceil(attendanceList.length / pageSize));
+  const paginatedData = attendanceList.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   return (
     <div className="space-y-6 pb-16 font-sans">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200/90 shadow-xs">
         <div>
-          <div className="flex items-center space-x-2">
-            {/* <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-              My Profile
-            </span> */}
-          </div>
           <h1 className="text-2xl font-bold text-gray-900 mt-2 tracking-tight">
             My Attendance History
           </h1>
@@ -68,32 +98,9 @@ export default function TLAttendancePage() {
             View your personal attendance records, clock-in times, and total shift hours.
           </p>
         </div>
-        {/* <div className="flex items-center space-x-2.5 shrink-0">
-          <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg shadow-sm flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-800 font-bold overflow-hidden">
-               {teamLeadProfile?.profileImageUrl ? (
-                  <img
-                    src={teamLeadProfile.profileImageUrl}
-                    alt={teamLeadProfile?.name || "TL"}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  teamLeadProfile?.avatar || "SC"
-                )}
-            </div>
-            <div>
-              <p className="text-sm font-bold text-gray-900">{teamLeadProfile?.name || "Team Lead"}</p>
-              <p className="text-[10px] text-gray-500">{teamLeadProfile?.employeeId || "RC-001"}</p>
-            </div>
-          </div>
-        </div> */}
       </div>
 
-      <div className="bg-white rounded-sm border border-gray-200/90 shadow-xs overflow-hidden flex flex-col">
-        {/* <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-gray-800">Attendance Log</h2>
-        </div> */}
-
+      <div className="bg-white rounded-xl border border-gray-200/90 shadow-xs overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -106,31 +113,59 @@ export default function TLAttendancePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
-              {paginatedData.map((record) => (
-                <tr key={record.id} className="hover:bg-gray-50/70 transition-colors">
-                  <td className="py-3.5 px-5 font-bold text-gray-900">{record.date}</td>
-                  <td className="py-3.5 px-4 font-semibold text-gray-700">{record.checkIn}</td>
-                  <td className="py-3.5 px-4 font-semibold text-gray-700">{record.checkOut || "--"}</td>
-                  <td className="py-3.5 px-4 font-semibold text-gray-700">{record.totalHours}</td>
-                  <td className="py-3.5 px-4">
-                    {record.status === "On Time" && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
-                        On Time
-                      </span>
-                    )}
-                    {record.status === "Late" && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
-                        Late
-                      </span>
-                    )}
-                    {record.status === "Missing Punch" && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800">
-                        Missing Punch
-                      </span>
-                    )}
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="py-14 text-center">
+                    <div className="flex items-center justify-center space-x-2 text-gray-400">
+                      <svg className="w-5 h-5 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span className="text-xs font-semibold">Loading attendance records from database...</span>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : attendanceList.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-14 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                      <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                        <TimeTrackerIcon className="w-6 h-6" size={24} />
+                      </div>
+                      <p className="text-sm font-bold text-gray-800">No attendance records found</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        You have not recorded any attendance punches yet. Use the Check-in button in the top navigation to record your attendance.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((record) => (
+                  <tr key={record.id} className="hover:bg-gray-50/70 transition-colors">
+                    <td className="py-3.5 px-5 font-bold text-gray-900">{record.date}</td>
+                    <td className="py-3.5 px-4 font-semibold text-gray-700">{record.checkIn}</td>
+                    <td className="py-3.5 px-4 font-semibold text-gray-700">{record.checkOut || "--"}</td>
+                    <td className="py-3.5 px-4 font-semibold text-gray-700">{record.totalHours}</td>
+                    <td className="py-3.5 px-4">
+                      {record.status === "On Time" && (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                          On Time
+                        </span>
+                      )}
+                      {record.status === "Late" && (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
+                          Late
+                        </span>
+                      )}
+                      {record.status === "Missing Punch" && (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800">
+                          Missing Punch
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -140,14 +175,14 @@ export default function TLAttendancePage() {
           <div className="text-gray-500">
             Showing{" "}
             <span className="font-semibold text-gray-900">
-              {(currentPage - 1) * pageSize + 1}
+              {attendanceList.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
             </span>{" "}
             to{" "}
             <span className="font-semibold text-gray-900">
-              {Math.min(currentPage * pageSize, dummyAttendance.length)}
+              {Math.min(currentPage * pageSize, attendanceList.length)}
             </span>{" "}
             of{" "}
-            <span className="font-semibold text-gray-900">{dummyAttendance.length}</span> records
+            <span className="font-semibold text-gray-900">{attendanceList.length}</span> records
           </div>
 
           <div className="flex items-center space-x-1.5">
@@ -166,7 +201,6 @@ export default function TLAttendancePage() {
 
             {/* Numbered Page Buttons */}
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-              // Simple pagination display logic to avoid too many buttons
               if (
                 p === 1 ||
                 p === totalPages ||
@@ -186,11 +220,12 @@ export default function TLAttendancePage() {
                     {p}
                   </button>
                 );
-              } else if (
-                p === currentPage - 2 ||
-                p === currentPage + 2
-              ) {
-                return <span key={p} className="text-gray-400 px-1">...</span>;
+              } else if (p === currentPage - 2 || p === currentPage + 2) {
+                return (
+                  <span key={p} className="text-gray-400 px-1">
+                    ...
+                  </span>
+                );
               }
               return null;
             })}
@@ -198,9 +233,9 @@ export default function TLAttendancePage() {
             <button
               type="button"
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              disabled={currentPage === totalPages || attendanceList.length === 0}
               className={`px-3 py-1.5 rounded-lg font-semibold border transition flex items-center space-x-1 ${
-                currentPage === totalPages
+                currentPage === totalPages || attendanceList.length === 0
                   ? "border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed"
                   : "border-gray-200 text-gray-700 bg-white hover:bg-gray-100 active:scale-95 shadow-xs cursor-pointer"
               }`}
@@ -213,3 +248,4 @@ export default function TLAttendancePage() {
     </div>
   );
 }
+

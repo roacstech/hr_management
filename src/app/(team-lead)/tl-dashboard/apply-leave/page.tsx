@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useTenant } from "@/context/TenantContext";
+import CalendarPicker from "@/components/CalendarPicker";
 
 export default function ApplyLeavePage() {
   const {
@@ -19,6 +20,10 @@ export default function ApplyLeavePage() {
 
   // Selected leave detail modal state
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+
+  // Cancellation confirmation modal state
+  const [cancelTargetRequest, setCancelTargetRequest] = useState<any | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Filter & Search states
   const [activeTab, setActiveTab] = useState<"All" | "Pending" | "Approved" | "Rejected">("All");
@@ -59,17 +64,22 @@ export default function ApplyLeavePage() {
     setFormData(initialFormState);
   };
 
-  // Handle ESC key to close drawer and modal
+  // Handle ESC key to close drawer and modals
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        handleCloseDrawer();
-        setSelectedRequest(null);
+        if (cancelTargetRequest) {
+          setCancelTargetRequest(null);
+        } else if (selectedRequest) {
+          setSelectedRequest(null);
+        } else if (isDrawerOpen) {
+          handleCloseDrawer();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [cancelTargetRequest, selectedRequest, isDrawerOpen]);
 
   // Reset form whenever drawer closes
   useEffect(() => {
@@ -101,15 +111,36 @@ export default function ApplyLeavePage() {
     return diffDays;
   }, [formData.startDate, formData.endDate, formData.isHalfDay]);
 
-  // Filter leaves belonging to Team Lead (or current org TL view)
-  const myLeaves = useMemo(() => {
-    const tlId = teamLeadProfile?.id || "emp-tl-001";
-    const tlName = teamLeadProfile?.name || "Sarah Chen";
+  // Database leaves state
+  const [dbLeaves, setDbLeaves] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-    return leaveRequests
-      .filter((r) => r.employeeId === tlId || r.employeeName === tlName)
-      .sort((a, b) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime());
-  }, [leaveRequests, teamLeadProfile]);
+  // Fetch real leaves from database API
+  const fetchLeaves = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/team-lead/leave");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setDbLeaves(json.data);
+      }
+    } catch (err) {
+      console.error("Failed to load leave records from database:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  // Filter leaves belonging to Team Lead from database
+  const myLeaves = useMemo(() => {
+    return [...dbLeaves].sort(
+      (a, b) => new Date(b.appliedAt || "").getTime() - new Date(a.appliedAt || "").getTime()
+    );
+  }, [dbLeaves]);
 
   // Tab counts
   const counts = useMemo(() => {
@@ -163,8 +194,8 @@ export default function ApplyLeavePage() {
     return filteredLeaves.slice(startIndex, startIndex + pageSize);
   }, [filteredLeaves, currentPage, pageSize]);
 
-  // Handle Form Submit
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle Form Submit (Persist to MySQL database)
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.leaveTypeId) {
@@ -185,27 +216,34 @@ export default function ApplyLeavePage() {
     setIsSubmitting(true);
 
     try {
-      applyLeaveRequest({
-        employeeId: teamLeadProfile?.id || "emp-tl-001",
-        employeeName: teamLeadProfile?.name || "Sarah Chen",
-        employeeAvatar: teamLeadProfile?.avatar || "SC",
-        leaveTypeId: formData.leaveTypeId,
-        leaveTypeName: formData.leaveTypeName,
+      const payload = {
+        leaveTypeName: formData.leaveTypeName || "Casual Leave",
         startDate: formData.startDate,
         endDate: formData.isHalfDay ? formData.startDate : formData.endDate,
         days: calculatedDays,
         reason: formData.reason.trim(),
-        status: "Pending",
-        managerName: defaultManager,
         isHalfDay: formData.isHalfDay,
         halfDaySession: formData.isHalfDay ? formData.halfDaySession : undefined,
-        contactDuringLeave: formData.emergencyContact,
+        emergencyContact: formData.emergencyContact,
+        managerName: defaultManager,
+      };
+
+      const res = await fetch("/api/team-lead/leave", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to submit leave request to database");
+      }
 
       showToast(`Leave application sent to ${defaultManager} for approval!`, "success");
 
       handleCloseDrawer();
-      setCurrentPage(1); // Jump to page 1 to see the newly submitted request
+      setCurrentPage(1); // Jump to page 1
+      await fetchLeaves(); // Reload from database
     } catch (err: any) {
       showToast(err.message || "Failed to submit leave request.", "error");
     } finally {
@@ -213,14 +251,33 @@ export default function ApplyLeavePage() {
     }
   };
 
-  const handleCancelRequest = (reqId: string) => {
-    if (confirm("Are you sure you want to cancel this pending leave request?")) {
-      const ok = cancelLeaveRequest(reqId);
-      if (ok) {
-        if (selectedRequest?.id === reqId) {
-          setSelectedRequest(null);
-        }
+  // Trigger custom cancellation modal
+  const handleOpenCancelModal = (item: any) => {
+    setCancelTargetRequest(item);
+  };
+
+  // Perform confirmed cancellation
+  const handleConfirmCancel = async () => {
+    if (!cancelTargetRequest) return;
+    setIsCancelling(true);
+    try {
+      const res = await fetch(`/api/team-lead/leave?id=${encodeURIComponent(cancelTargetRequest.id)}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to cancel leave request");
       }
+      showToast("Leave request cancelled successfully.", "success");
+      if (selectedRequest?.id === cancelTargetRequest.id) {
+        setSelectedRequest(null);
+      }
+      setCancelTargetRequest(null);
+      await fetchLeaves();
+    } catch (err: any) {
+      showToast(err.message || "Failed to cancel leave request.", "error");
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -364,17 +421,26 @@ export default function ApplyLeavePage() {
                 <th className="py-3.5 px-5">Leave Type</th>
                 <th className="py-3.5 px-4">Applied Date</th>
                 <th className="py-3.5 px-4">Leave Duration</th>
-                <th className="py-3.5 px-3 text-center">Days</th>
-                <th className="py-3.5 px-4">Reason / Notes</th>
-                <th className="py-3.5 px-4">Manager Assigned</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginatedLeaves.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-14 text-center">
+                  <td colSpan={5} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2.5">
+                      <svg className="animate-spin w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <p className="text-xs font-semibold text-gray-500">Loading leave applications from database...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedLeaves.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-14 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                       <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -387,13 +453,6 @@ export default function ApplyLeavePage() {
                           ? "Try clearing filters to find what you're looking for."
                           : "You haven't submitted any leave applications yet."}
                       </p>
-                      <button
-                        type="button"
-                        onClick={handleOpenDrawer}
-                        className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
-                      >
-                        Apply for Leave Now
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -410,29 +469,15 @@ export default function ApplyLeavePage() {
                     >
                       {/* Leave Type */}
                       <td className="py-3.5 px-5 whitespace-nowrap">
-                        <div className="flex items-center gap-2.5">
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              item.leaveTypeName.includes("Casual")
-                                ? "bg-blue-500"
-                                : item.leaveTypeName.includes("Sick")
-                                ? "bg-emerald-500"
-                                : item.leaveTypeName.includes("Annual")
-                                ? "bg-purple-500"
-                                : "bg-amber-500"
-                            }`}
-                          ></span>
-                          <div>
-                            <span className="font-bold text-gray-900 group-hover:text-blue-600 transition">
-                              {item.leaveTypeName}
+                        <div className="flex items-center">
+                          <span className="font-bold text-gray-900 group-hover:text-blue-600 transition">
+                            {item.leaveTypeName}
+                          </span>
+                          {item.isHalfDay && (
+                            <span className="ml-2 text-[10px] font-semibold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">
+                              {item.halfDaySession || "Half Day"}
                             </span>
-                            {item.isHalfDay && (
-                              <span className="ml-2 text-[10px] font-semibold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">
-                                {item.halfDaySession || "Half Day"}
-                              </span>
-                            )}
-                            <p className="text-[11px] text-gray-400">ID: {item.id}</p>
-                          </div>
+                          )}
                         </div>
                       </td>
 
@@ -451,35 +496,6 @@ export default function ApplyLeavePage() {
                               <span>{formatDate(item.endDate)}</span>
                             </>
                           )}
-                        </div>
-                      </td>
-
-                      {/* Days Count */}
-                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                        <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
-                          {item.days} {item.days === 1 ? "day" : "days"}
-                        </span>
-                      </td>
-
-                      {/* Reason */}
-                      <td className="py-3.5 px-4 max-w-xs truncate" title={item.reason}>
-                        <span className="text-gray-700">{item.reason}</span>
-                      </td>
-
-                      {/* Manager Assigned */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px]">
-                            AP
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-800 text-[11px]">
-                              {item.managerName || defaultManager}
-                            </p>
-                            <p className="text-[10px] text-gray-400">
-                              {isPending ? "Review Pending" : item.reviewedBy ? `Reviewed by ${item.reviewedBy}` : "Routing Complete"}
-                            </p>
-                          </div>
                         </div>
                       </td>
 
@@ -523,7 +539,7 @@ export default function ApplyLeavePage() {
                           {isPending && (
                             <button
                               type="button"
-                              onClick={() => handleCancelRequest(item.id)}
+                              onClick={() => handleOpenCancelModal(item)}
                               className="px-2.5 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md transition cursor-pointer"
                               title="Cancel this pending application"
                             >
@@ -638,7 +654,7 @@ export default function ApplyLeavePage() {
       {/* Drawer Container (Right side) */}
       <div
         id="apply-leave-offcanvas"
-        className={`fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col overflow-x-hidden transform transition-transform duration-300 ease-in-out ${
           isDrawerOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -660,27 +676,8 @@ export default function ApplyLeavePage() {
           </button>
         </div>
 
-        {/* Drawer Form Body (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Assigned Reporting Manager Card */}
-          {/* <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-100 flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
-              AP
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-bold text-gray-900 truncate">
-                  {defaultManager}
-                </p>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-blue-200/80 text-blue-900">
-                  Manager
-                </span>
-              </div>
-              <p className="text-[11px] text-gray-500 mt-0.5">
-                Designated reviewer for your leave approvals.
-              </p>
-            </div>
-          </div> */}
+        {/* Drawer Form Body (Scrollable, No horizontal scroll) */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6">
 
           {/* Form */}
           <form id="apply-leave-form" onSubmit={handleSubmit} className="space-y-5">
@@ -749,41 +746,43 @@ export default function ApplyLeavePage() {
               )}
             </div>
 
-            {/* Dates Row */}
+            {/* Dates Row with Professional CalendarPicker */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700">Start Date *</label>
-                <input
-                  type="date"
-                  required
-                  value={formData.startDate}
-                  onChange={(e) => {
-                    const newStart = e.target.value;
-                    setFormData((prev) => ({
-                      ...prev,
-                      startDate: newStart,
-                      endDate: prev.endDate < newStart ? newStart : prev.endDate,
-                    }));
-                  }}
-                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
-                />
-              </div>
+              <CalendarPicker
+                id="apply-leave-start-date"
+                label="Start Date"
+                required
+                align="left"
+                placeholder="Select start date..."
+                value={formData.startDate}
+                onChange={(newStart) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    startDate: newStart,
+                    endDate: prev.endDate && prev.endDate < newStart ? newStart : prev.endDate,
+                  }));
+                }}
+              />
 
               {!formData.isHalfDay ? (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700">End Date *</label>
-                  <input
-                    type="date"
-                    required
-                    min={formData.startDate}
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
-                  />
-                </div>
+                <CalendarPicker
+                  id="apply-leave-end-date"
+                  label="End Date"
+                  required
+                  align="right"
+                  placeholder="Select end date..."
+                  minDate={formData.startDate || undefined}
+                  value={formData.endDate}
+                  onChange={(newEnd) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      endDate: newEnd,
+                    }));
+                  }}
+                />
               ) : (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400">End Date</label>
+                  <label className="block text-xs font-bold text-gray-400">End Date</label>
                   <input
                     type="text"
                     disabled
@@ -829,7 +828,7 @@ export default function ApplyLeavePage() {
 
               {/* Quick suggestion pills */}
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-[10px] text-gray-400">Quick reasons:</span>
+                <span className="text-[10px] text-gray-900">Quick reasons:</span>
                 {["Doctor Appointment", "Family Emergency", "Personal Errands", "Annual Vacation"].map(
                   (suggestion) => (
                     <button
@@ -954,13 +953,31 @@ export default function ApplyLeavePage() {
                 </p>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-gray-100">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Assigned Manager:</span>
-                  <span className="font-bold text-gray-800">
-                    {selectedRequest.managerName || defaultManager}
-                  </span>
+              {/* Assigned Manager Profile Card */}
+              <div className="p-3.5 bg-gradient-to-r from-blue-50/70 to-indigo-50/70 rounded-xl border border-blue-100 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-xs shrink-0">
+                  AP
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-900 text-xs truncate">
+                      {selectedRequest.managerName || defaultManager}
+                    </span>
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.2 bg-blue-100 text-blue-800 rounded">
+                      Approver
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    {selectedRequest.status === "Pending"
+                      ? "Designated manager for time-off approvals"
+                      : selectedRequest.reviewedBy
+                      ? `Reviewed by ${selectedRequest.reviewedBy}`
+                      : "Workflow completed"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Submitted On:</span>
                   <span className="font-semibold text-gray-700">
@@ -988,7 +1005,7 @@ export default function ApplyLeavePage() {
               {selectedRequest.status === "Pending" ? (
                 <button
                   type="button"
-                  onClick={() => handleCancelRequest(selectedRequest.id)}
+                  onClick={() => handleOpenCancelModal(selectedRequest)}
                   className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Cancel Request
@@ -1003,6 +1020,102 @@ export default function ApplyLeavePage() {
                 className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* CANCELLATION CONFIRMATION MODAL                          */}
+      {/* ======================================================== */}
+      {cancelTargetRequest && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-gray-100 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Modal Header & Icon */}
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4 shadow-xs">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+
+              <h3 className="text-lg font-extrabold text-gray-900 tracking-tight">
+                Cancel Leave Request?
+              </h3>
+              <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                Are you sure you want to cancel this pending time-off request? This application will be permanently withdrawn and removed from manager review.
+              </p>
+
+              {/* Leave Details Card */}
+              <div className="mt-4 p-3.5 bg-gray-50/80 rounded-xl border border-gray-200/70 text-left space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-900">
+                    {cancelTargetRequest.leaveTypeName}
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                    Pending Review
+                  </span>
+                </div>
+
+                <div className="text-[11px] text-gray-600 flex items-center justify-between">
+                  <span>
+                    {formatDate(cancelTargetRequest.startDate)}
+                    {cancelTargetRequest.startDate !== cancelTargetRequest.endDate && (
+                      <> → {formatDate(cancelTargetRequest.endDate)}</>
+                    )}
+                  </span>
+                  <span className="font-semibold text-gray-800">
+                    {cancelTargetRequest.days} {cancelTargetRequest.days === 1 ? "Day" : "Days"}
+                  </span>
+                </div>
+
+                {cancelTargetRequest.reason && (
+                  <p className="text-[11px] text-gray-500 italic truncate border-t border-gray-200/50 pt-1.5 mt-1.5">
+                    &ldquo;{cancelTargetRequest.reason}&rdquo;
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 bg-gray-50/90 border-t border-gray-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={() => setCancelTargetRequest(null)}
+                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl transition cursor-pointer disabled:opacity-50"
+              >
+                No, Keep Request
+              </button>
+
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={handleConfirmCancel}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-sm shadow-rose-500/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isCancelling ? (
+                  <>
+                    <svg className="animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Yes, Cancel Request
+                  </>
+                )}
               </button>
             </div>
           </div>

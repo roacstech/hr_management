@@ -55,9 +55,9 @@ export default function TeamRosterPage() {
 
 
   return (
-    <div className="space-y-6 pb-16 font-sans">
+    <div className="space-y-6 pb-16 font-sans pt-6 sm:pt-8">
       {/* 1. Top Section */}
-      <div className="flex flex-col xl:flex-row gap-6 items-start">
+      <div className="flex flex-col xl:flex-row gap-6 items-start pt-4">
         {/* Left Side: Attendance Widget */}
         <div className="shrink-0 flex items-start justify-center">
           <AttendanceWidget />
@@ -71,14 +71,14 @@ export default function TeamRosterPage() {
             {/* <div className="w-20 h-20 rounded border border-gray-100 flex items-center justify-center shrink-0 bg-white">
             </div> */}
             <div className="flex flex-col justify-center">
-              <h1 className="text-2xl text-gray-800 font-semibold flex items-center gap-3">
-                {greeting},{" "}
-                <span className="font-medium text-gray-700">
-                  {teamLeadProfile?.name?.split(" ")[0] || "Sarah"}
+              <h1 className="text-xl text-gray-800 font-semibold flex items-center gap-3">
+                {greeting},
+                <span className="font-small text-blue-700">
+                  {teamLeadProfile?.name?.split(" ")[0] || ""}
                 </span>
               </h1>
               <p className="text-gray-500 mt-2 text-sm font-medium">
-                {teamLeadProfile?.role || "Team Lead"} • {teamLeadProfile?.workLocation || "San Francisco HQ (Hybrid)"}
+                {teamLeadProfile?.role || "Team Lead"} • {teamLeadProfile?.workLocation || ""}
               </p>
             </div>
           </div>
@@ -91,7 +91,7 @@ export default function TeamRosterPage() {
               { label: "On Leave", value: onLeaveCount, color: "text-indigo-700", bg: "bg-indigo-50" },
               { label: "Pending", value: pendingApprovalsCount > 0 ? pendingApprovalsCount : 4, color: "text-amber-700", bg: "bg-amber-50" },
             ].map((kpi, idx) => (
-              <div key={idx} className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs flex flex-col items-start space-y-2">
+              <div key={idx} className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs flex flex-col items-start space-y-2 border-l-4" style={{ borderColor: kpi.bg.replace("bg-", "") }}>
                 <p className="text-sm text-gray-500 font-semibold">{kpi.label}</p>
                 <div className={`text-3xl font-extrabold ${kpi.color}`}>{kpi.value}</div>
               </div>
@@ -108,13 +108,13 @@ export default function TeamRosterPage() {
         <div className="space-y-6">
           
           {/* Pending Approvals */}
-          <div className="bg-white rounded-xl border border-gray-200/90 shadow-xs overflow-hidden flex flex-col h-80">
+          <div className="bg-white rounded-xl border border-gray-200/90 shadow-xs overflow-hidden flex flex-col">
             <div className="p-4 border-b border-gray-100 bg-slate-50 flex items-center justify-between">
               <h2 className="text-sm font-bold text-gray-800">Pending Approvals</h2>
             </div>
-            <div className="p-4 flex-1 overflow-y-auto space-y-4">
+            <div className="p-4 space-y-3">
               {recentPendingApprovals.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center mt-8">No pending approvals.</p>
+                <p className="text-sm text-gray-500 text-center py-6">No pending approvals.</p>
               ) : (
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 recentPendingApprovals.map((item: any) => (
@@ -134,7 +134,7 @@ export default function TeamRosterPage() {
                 ))
               )}
             </div>
-            <div className="p-3 border-t border-gray-100 bg-gray-50 text-center">
+            <div className="p-3 border-t border-gray-100 bg-gray-50 text-center mt-auto">
               <Link href="/tl-dashboard/desk" className="text-xs font-bold text-blue-600 hover:text-blue-800 transition">
                 View All →
               </Link>
@@ -148,7 +148,7 @@ export default function TeamRosterPage() {
             </div>
             <div className="p-4 space-y-3">
               {upcomingLeaves.length === 0 ? (
-                <p className="text-sm text-gray-500">No upcoming leaves scheduled.</p>
+                <p className="text-sm text-gray-500 py-4">No upcoming leaves scheduled.</p>
               ) : (
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 upcomingLeaves.map((leave: any) => (
@@ -172,11 +172,11 @@ export default function TeamRosterPage() {
         <div className="space-y-6">
           
           {/* Team Attendance Today */}
-          <div className="bg-white rounded-xl border border-gray-200/90 shadow-xs overflow-hidden flex flex-col h-80">
+          <div className="bg-white rounded-xl border border-gray-200/90 shadow-xs overflow-hidden flex flex-col">
             <div className="p-4 border-b border-gray-100 bg-slate-50 flex items-center justify-between">
               <h2 className="text-sm font-bold text-gray-800">Team Attendance Today</h2>
             </div>
-            <div className="p-4 flex-1 overflow-y-auto space-y-3">
+            <div className="p-4 space-y-3">
               {todayAttendance.map((member) => (
                 <div key={member.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition border border-transparent hover:border-gray-100">
                   <div className="flex items-center space-x-3">
@@ -194,7 +194,7 @@ export default function TeamRosterPage() {
                 </div>
               ))}
             </div>
-            <div className="p-3 border-t border-gray-100 bg-gray-50 text-center">
+            <div className="p-3 border-t border-gray-100 bg-gray-50 text-center mt-auto">
               <Link href="/tl-dashboard/attendance" className="text-xs font-bold text-blue-600 hover:text-blue-800 transition">
                 View All →
               </Link>
