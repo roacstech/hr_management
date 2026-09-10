@@ -15,6 +15,7 @@ import {
   UserAvatarIcon,
   CloseIcon,
   LogoutIcon,
+  LeaveTrackerIcon,
 } from "@/components/SidebarIcons";
 import { TenantProvider, useTenant } from "@/context/TenantContext";
 
@@ -36,9 +37,9 @@ function ManagerPortalLayoutContent({ children }: { children: React.ReactNode })
   const profileRef = useRef<HTMLDivElement>(null);
   const quickAddRef = useRef<HTMLDivElement>(null);
 
-  // Main fixed sidebar dock items for Manager
   const dockMenuItems = [
     { name: "Overview", path: "/manager-dashboard", icon: HomeIcon, exact: true },
+    { name: "My Leave", path: "/manager-dashboard/apply-leave", icon: LeaveTrackerIcon },
     { name: "Approvals", path: "/manager-dashboard/approvals", icon: OperationsIcon },
     // { name: "Performance", path: "/manager-dashboard/performance", icon: TrophyIcon },
     { name: "Dept Hub", path: "/manager-dashboard/cms", icon: BuildingIcon },
