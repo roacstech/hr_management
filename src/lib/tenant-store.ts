@@ -1300,6 +1300,8 @@ export class TenantDataStore {
       localStorage.removeItem(STORAGE_KEY);
     }
     this.state = this.getInitialState();
+    this.notify();
+    this.state = this.getInitialState();
   }
 }
 

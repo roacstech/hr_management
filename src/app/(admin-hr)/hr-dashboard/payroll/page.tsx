@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTenant } from "@/context/TenantContext";
 import { PayrollRun, Payslip, Employee } from "@/lib/types";
 import { CloseIcon, SearchIcon, CompensationIcon } from "@/components/SidebarIcons";
 import EmptyState from "@/components/EmptyState";
 
-export default function GlobalPayrollPage() {
+function GlobalPayrollContent() {
   const {
     currentOrg,
     employees,
@@ -18,10 +19,15 @@ export default function GlobalPayrollPage() {
     showToast,
   } = useTenant();
 
+  const searchParams = useSearchParams();
+  const isMyView = searchParams.get("view") === "my";
+
   // Selected Month & Year
   const [selectedMonth, setSelectedMonth] = useState("September");
   const [selectedYear, setSelectedYear] = useState(2026);
-  const [activeTab, setActiveTab] = useState<"runs" | "compensation" | "payslips">("runs");
+  const [activeTab, setActiveTab] = useState<"runs" | "compensation" | "payslips">(
+    isMyView ? "payslips" : "runs"
+  );
 
   // Filter & Search
   const [search, setSearch] = useState("");
@@ -159,7 +165,7 @@ export default function GlobalPayrollPage() {
         <div>
           <div className="flex items-center space-x-2">
             <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-              {currentOrg.name} Payroll Engine
+              {isMyView ? "Personal Compensation & Payslips" : "Enterprise Payroll Engine"}
             </span>
             {currentRun && (
               <span
@@ -178,10 +184,12 @@ export default function GlobalPayrollPage() {
             )}
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mt-1.5 tracking-tight">
-            Global Payroll & Compensation
+            {isMyView ? "My Payslips & Compensation" : "Global Payroll & Compensation"}
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Process monthly salaries, calculate unpaid leave / LOP deductions, verify taxes, and generate PDF payslips.
+            {isMyView
+              ? "View your monthly salary slips, tax breakdown, provident fund records, and download PDF payslips."
+              : "Process monthly salaries, calculate unpaid leave / LOP deductions, verify taxes, and generate PDF payslips."}
           </p>
         </div>
 
@@ -927,5 +935,13 @@ export default function GlobalPayrollPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function GlobalPayrollPage() {
+  return (
+    <Suspense fallback={null}>
+      <GlobalPayrollContent />
+    </Suspense>
   );
 }

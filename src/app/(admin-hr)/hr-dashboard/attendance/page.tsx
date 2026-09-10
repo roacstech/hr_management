@@ -1,18 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTenant } from "@/context/TenantContext";
 import { AttendanceRecord } from "@/lib/types";
 import { PlusIcon, CloseIcon } from "@/components/SidebarIcons";
 
-export default function AttendancePage() {
+function AttendanceContent() {
   const { currentOrg, employees, attendanceRecords, showToast } = useTenant();
+  const searchParams = useSearchParams();
+  const isMyView = searchParams.get("view") === "my";
+
+  const myEmployee = useMemo(
+    () => employees.find((e) => e.name === "Amira Patel") || employees[0],
+    [employees]
+  );
+
+  const displayedRecords = useMemo(() => {
+    if (isMyView) {
+      return attendanceRecords.filter(
+        (a) => a.employeeName === "Amira Patel" || a.employeeId === myEmployee?.id
+      );
+    }
+    return attendanceRecords;
+  }, [attendanceRecords, isMyView, myEmployee]);
 
   const [isPunchModalOpen, setIsPunchModalOpen] = useState(false);
   const [punchForm, setPunchForm] = useState({
-    employeeId: employees[0]?.id || "",
+    employeeId: myEmployee?.id || employees[0]?.id || "",
     status: "Present" as AttendanceRecord["status"],
-    checkIn: "09:00 AM",
+    checkIn: "08:50 AM",
     checkOut: "06:00 PM",
     workHours: 8.5,
   });
@@ -62,13 +79,15 @@ export default function AttendancePage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200/90 shadow-xs">
         <div>
           <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-            {currentOrg.name} Attendance & Biometrics
+            {isMyView ? "Personal Attendance & Timecard" : "Employee Attendance & Biometrics"}
           </span>
           <h1 className="text-2xl font-bold text-gray-900 mt-1.5 tracking-tight">
-            Attendance & Punch Logs
+            {isMyView ? "My Attendance Logs" : "Attendance & Punch Logs"}
           </h1>
           <p className="text-gray-500 text-xs mt-0.5">
-            Real-time daily punch times, punctuality compliance, and manual regularization adjustments.
+            {isMyView
+              ? "Real-time personal punch times, shift check-ins, and daily working hours for Amira Patel."
+              : "Real-time daily punch times, punctuality compliance, and manual regularization adjustments."}
           </p>
         </div>
         <div className="flex items-center space-x-2.5">
@@ -85,43 +104,68 @@ export default function AttendancePage() {
             className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition cursor-pointer"
           >
             <PlusIcon className="w-3.5 h-3.5 mr-1.5 text-white" size={14} />
-            Record Manual Punch
+            {isMyView ? "Log Punch Regularization" : "Record Manual Punch"}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
-          <p className="text-xs text-gray-500 font-medium">Present Today</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {presentCount} / {activeEmployees.length}
-          </p>
-          <span className="text-[11px] text-emerald-600 font-semibold">
-            {Math.round((presentCount / Math.max(1, activeEmployees.length)) * 100)}% Attendance Rate
-          </span>
+      {isMyView ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Today&apos;s Status</p>
+            <p className="text-2xl font-bold text-emerald-600">Present</p>
+            <span className="text-[11px] text-gray-400">Clocked in at 08:50 AM</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Logged Work Hours</p>
+            <p className="text-2xl font-bold text-gray-900">8.2 hrs</p>
+            <span className="text-[11px] text-emerald-600 font-semibold">Standard shift completed</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Punctuality Score</p>
+            <p className="text-2xl font-bold text-blue-600">100%</p>
+            <span className="text-[11px] text-gray-400">No late arrivals logged</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Overtime Recorded</p>
+            <p className="text-2xl font-bold text-gray-900">0.0 hrs</p>
+            <span className="text-[11px] text-gray-400">Eligible for 1.5x regular rate</span>
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
-          <p className="text-xs text-gray-500 font-medium">Late Arrivals</p>
-          <p className="text-2xl font-bold text-amber-600">{lateCount}</p>
-          <span className="text-[11px] text-gray-400">Beyond grace period</span>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Present Today</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {presentCount} / {activeEmployees.length}
+            </p>
+            <span className="text-[11px] text-emerald-600 font-semibold">
+              {Math.round((presentCount / Math.max(1, activeEmployees.length)) * 100)}% Attendance Rate
+            </span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Late Arrivals</p>
+            <p className="text-2xl font-bold text-amber-600">{lateCount}</p>
+            <span className="text-[11px] text-gray-400">Beyond grace period</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">On Approved Leave</p>
+            <p className="text-2xl font-bold text-blue-600">{leaveCount}</p>
+            <span className="text-[11px] text-gray-400">Recorded in tracker</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Unaccounted Absent</p>
+            <p className="text-2xl font-bold text-emerald-600">0</p>
+            <span className="text-[11px] text-gray-400">100% accounted for</span>
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
-          <p className="text-xs text-gray-500 font-medium">On Approved Leave</p>
-          <p className="text-2xl font-bold text-blue-600">{leaveCount}</p>
-          <span className="text-[11px] text-gray-400">Recorded in tracker</span>
-        </div>
-        <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
-          <p className="text-xs text-gray-500 font-medium">Unaccounted Absent</p>
-          <p className="text-2xl font-bold text-emerald-600">0</p>
-          <span className="text-[11px] text-gray-400">100% accounted for</span>
-        </div>
-      </div>
+      )}
 
       {/* Punch Logs Table */}
       <div className="bg-white rounded-2xl border border-gray-200/90 overflow-hidden shadow-xs">
         <div className="p-4 border-b border-gray-100 flex justify-between items-center text-xs">
           <h2 className="font-bold text-gray-900 uppercase tracking-wide">
-            Daily Punch Log Records ({attendanceRecords.length})
+            {isMyView ? "My Personal Punch Log Records" : "Daily Punch Log Records"} ({displayedRecords.length})
           </h2>
           <span suppressHydrationWarning className="text-gray-400">Today: {new Date().toLocaleDateString()}</span>
         </div>
@@ -140,7 +184,7 @@ export default function AttendancePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 font-mono text-[11.5px]">
-              {attendanceRecords.map((att) => (
+              {displayedRecords.map((att) => (
                 <tr key={att.id} className="hover:bg-gray-50/60 transition">
                   <td className="px-5 py-3.5 font-sans font-bold text-gray-900 whitespace-nowrap">
                     {att.employeeName}
@@ -277,5 +321,13 @@ export default function AttendancePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AttendancePage() {
+  return (
+    <Suspense fallback={null}>
+      <AttendanceContent />
+    </Suspense>
   );
 }
