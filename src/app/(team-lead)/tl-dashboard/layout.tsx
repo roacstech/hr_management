@@ -13,8 +13,10 @@ import {
   UserAvatarIcon,
   CloseIcon,
   LogoutIcon,
+  TimeTrackerIcon,
 } from "@/components/SidebarIcons";
 import { TenantProvider, useTenant } from "@/context/TenantContext";
+import AttendanceWidget from "@/components/AttendanceWidget";
 
 function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -34,20 +36,12 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Team Lead Preferences
-  const [teamLeadSettings, setTeamLeadSettings] = useState({
-    gracePeriodMinutes: 15,
-    missingClockOutThresholdHours: 9,
-    autoFridayPing: true,
-    overtimePreApproval: true,
-    instantSlackWebhook: true,
-  });
+  const [isAttendanceMenuOpen, setIsAttendanceMenuOpen] = useState(false);
 
   const notificationDrawerRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const quickAddRef = useRef<HTMLDivElement>(null);
+  const attendanceRef = useRef<HTMLDivElement>(null);
 
   // Total pending items requiring TL attention
   const pendingLeaves = leaveRequests.filter((l) => l.status === "Pending").length;
@@ -57,9 +51,21 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
   // Main fixed sidebar dock items for Team Lead
   const dockMenuItems = [
     {
-      name: "Team Roster",
+      name: "Dashboard",
       path: "/tl-dashboard/roster",
       icon: AttendanceIcon,
+      badge: null,
+    },
+    {
+      name: "My Attendance",
+      path: "/tl-dashboard/attendance",
+      icon: TimeTrackerIcon,
+      badge: null,
+    },
+    {
+      name: "My Leave",
+      path: "/tl-dashboard/apply-leave",
+      icon: LeaveTrackerIcon,
       badge: null,
     },
     {
@@ -74,6 +80,8 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
       icon: BuildingIcon,
       badge: null,
     },
+    
+    
   ];
 
   // Handle ESC key to close drawers / popups
@@ -83,6 +91,7 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
         setIsNotificationsOpen(false);
         setIsProfileMenuOpen(false);
         setIsQuickAddOpen(false);
+        setIsAttendanceMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -104,6 +113,9 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
       }
       if (quickAddRef.current && !quickAddRef.current.contains(target)) {
         setIsQuickAddOpen(false);
+      }
+      if (attendanceRef.current && !attendanceRef.current.contains(target)) {
+        setIsAttendanceMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -323,6 +335,7 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
                   setIsQuickAddOpen((p) => !p);
                   setIsNotificationsOpen(false);
                   setIsProfileMenuOpen(false);
+                  setIsAttendanceMenuOpen(false);
                 }}
                 className="h-8 px-2.5 rounded-lg bg-[#007aff] hover:bg-[#006ee0] active:scale-95 text-white flex items-center space-x-1.5 transition-all duration-150 shadow-md shadow-blue-500/25 cursor-pointer focus:outline-none text-xs font-semibold"
                 title="Quick Action"
@@ -378,6 +391,7 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
                 setIsNotificationsOpen((p) => !p);
                 setIsQuickAddOpen(false);
                 setIsProfileMenuOpen(false);
+                setIsAttendanceMenuOpen(false);
               }}
               className="w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none relative"
               title="Team Notifications"
@@ -393,21 +407,37 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
               )}
             </button>
 
+            {/* Attendance Widget Toggle */}
+            <div className="relative" ref={attendanceRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAttendanceMenuOpen((p) => !p);
+                  setIsQuickAddOpen(false);
+                  setIsNotificationsOpen(false);
+                  setIsProfileMenuOpen(false);
+                }}
+                className="w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none"
+                title="Mark Attendance"
+              >
+                <AttendanceIcon className="w-4 h-4" size={16} />
+              </button>
+
+              {isAttendanceMenuOpen && (
+                <div className="absolute right-0 mt-3 pt-6 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <AttendanceWidget />
+                </div>
+              )}
+            </div>
+
             {/* Settings Gear Icon */}
-            <button
-              id="tl-settings-btn"
-              type="button"
-              onClick={() => {
-                setIsSettingsOpen(true);
-                setIsNotificationsOpen(false);
-                setIsQuickAddOpen(false);
-                setIsProfileMenuOpen(false);
-              }}
+            <Link
+              href="/tl-dashboard/settings"
               className="w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none"
               title="Team Lead Settings & Preferences"
             >
               <GearIcon className="w-4 h-4" size={16} />
-            </button>
+            </Link>
 
             {/* User Avatar Icon */}
             <div className="relative" ref={profileRef}>
@@ -417,6 +447,7 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
                   setIsProfileMenuOpen((p) => !p);
                   setIsQuickAddOpen(false);
                   setIsNotificationsOpen(false);
+                  setIsAttendanceMenuOpen(false);
                 }}
                 className="w-8 h-8 rounded-lg border border-amber-400/40 hover:border-amber-400 bg-amber-500/10 transition cursor-pointer flex items-center justify-center focus:outline-none overflow-hidden"
                 title="Team Lead Profile"
@@ -468,17 +499,14 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
                     <UserAvatarIcon className="w-3.5 h-3.5 mr-2 text-gray-400" size={15} />
                     My Profile
                   </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      setIsSettingsOpen(true);
-                    }}
-                    className="w-full flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition font-medium cursor-pointer text-left"
+                  <Link
+                    href="/tl-dashboard/settings"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                    className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition font-medium"
                   >
                     <GearIcon className="w-3.5 h-3.5 mr-2 text-gray-400" size={15} />
                     Team Preferences
-                  </button>
+                  </Link>
                   <Link
                     href="/login"
                     className="flex items-center px-4 py-2 text-red-600 hover:bg-red-50 transition font-semibold border-t border-gray-100 mt-1"
@@ -498,160 +526,7 @@ function TeamLeadLayoutContent({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {/* 4. TEAM LEAD SETTINGS MODAL */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-[1px] animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center">
-                  <GearIcon className="w-4 h-4" size={16} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 tracking-tight">
-                    Team Lead Settings
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Thresholds, punctuality rules, and alert preferences
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSettingsOpen(false)}
-                className="w-7 h-7 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center cursor-pointer"
-              >
-                <CloseIcon className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setIsSettingsOpen(false);
-                showToast("Team Lead thresholds and alert preferences saved successfully!");
-              }}
-              className="space-y-4 pt-4 text-xs"
-            >
-              {/* Scope */}
-              <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70 text-amber-950">
-                <p className="font-bold text-[11px] uppercase tracking-wider text-amber-800">Assigned Team Scope</p>
-                <p className="font-extrabold text-sm text-gray-900 mt-0.5">Frontend & Cloud Platform Team</p>
-                <p className="text-[11px] text-gray-600 mt-0.5">Lead: {teamLeadProfile?.name || "Sarah Chen"} • {teamLeadProfile?.directReportsCount ?? 6} Direct Reports • {currentOrg.name}</p>
-              </div>
-
-              {/* Grace Period */}
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  Punctuality Grace Period (Minutes)
-                </label>
-                <select
-                  value={teamLeadSettings.gracePeriodMinutes}
-                  onChange={(e) =>
-                    setTeamLeadSettings({
-                      ...teamLeadSettings,
-                      gracePeriodMinutes: Number(e.target.value),
-                    })
-                  }
-                  className="w-full bg-white text-xs border border-gray-300 rounded-lg px-3 py-2 font-medium"
-                >
-                  <option value={10}>10 Minutes Grace</option>
-                  <option value={15}>15 Minutes Grace (Default Standard)</option>
-                  <option value={20}>20 Minutes Grace</option>
-                  <option value={30}>30 Minutes Grace (Flexible Shift)</option>
-                </select>
-                <p className="text-[10.5px] text-gray-400 mt-1">Arrivals beyond this window trigger the "Late Arrival" flag on the roster.</p>
-              </div>
-
-              {/* Missing Clockout Alert */}
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  Missing Clock-Out Alert Threshold (Hours)
-                </label>
-                <select
-                  value={teamLeadSettings.missingClockOutThresholdHours}
-                  onChange={(e) =>
-                    setTeamLeadSettings({
-                      ...teamLeadSettings,
-                      missingClockOutThresholdHours: Number(e.target.value),
-                    })
-                  }
-                  className="w-full bg-white text-xs border border-gray-300 rounded-lg px-3 py-2 font-medium"
-                >
-                  <option value={8}>8 Hours on Shift</option>
-                  <option value={9}>9 Hours on Shift (Shift End + 1h)</option>
-                  <option value={10}>10 Hours on Shift (Overdue Flag)</option>
-                </select>
-                <p className="text-[10.5px] text-gray-400 mt-1">Automatically marks open shifts as missing sign-outs once exceeded.</p>
-              </div>
-
-              {/* Toggles */}
-              <div className="space-y-2.5 pt-1">
-                <label className="flex items-center space-x-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={teamLeadSettings.autoFridayPing}
-                    onChange={(e) =>
-                      setTeamLeadSettings({
-                        ...teamLeadSettings,
-                        autoFridayPing: e.target.checked,
-                      })
-                    }
-                    className="w-4 h-4 rounded text-blue-600 border-gray-300"
-                  />
-                  <span className="font-semibold text-gray-700">Auto-Ping direct team on Friday for timesheet submission</span>
-                </label>
-
-                <label className="flex items-center space-x-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={teamLeadSettings.overtimePreApproval}
-                    onChange={(e) =>
-                      setTeamLeadSettings({
-                        ...teamLeadSettings,
-                        overtimePreApproval: e.target.checked,
-                      })
-                    }
-                    className="w-4 h-4 rounded text-blue-600 border-gray-300"
-                  />
-                  <span className="font-semibold text-gray-700">Require TL pre-approval before overtime hours count toward payroll</span>
-                </label>
-
-                <label className="flex items-center space-x-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={teamLeadSettings.instantSlackWebhook}
-                    onChange={(e) =>
-                      setTeamLeadSettings({
-                        ...teamLeadSettings,
-                        instantSlackWebhook: e.target.checked,
-                      })
-                    }
-                    className="w-4 h-4 rounded text-blue-600 border-gray-300"
-                  />
-                  <span className="font-semibold text-gray-700">Real-time alerts for unpunched shifts & urgent PTO filings</span>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsSettingsOpen(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition cursor-pointer"
-                >
-                  Save Preferences
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Team Lead Settings Page is handled by /tl-dashboard/settings route */}
     </div>
   );
 }

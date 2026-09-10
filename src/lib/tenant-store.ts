@@ -1081,6 +1081,65 @@ export class TenantDataStore {
     return item;
   }
 
+  public applyLeaveRequest(
+    orgId: string,
+    request: Omit<LeaveRequest, "id" | "organizationId" | "appliedAt" | "status"> & {
+      status?: "Pending" | "Approved" | "Rejected";
+      appliedAt?: string;
+    },
+    user = "Sarah Chen"
+  ): LeaveRequest {
+    const newRequest: LeaveRequest = {
+      ...request,
+      id: `lr-${Date.now()}`,
+      organizationId: orgId,
+      status: request.status || "Pending",
+      appliedAt: request.appliedAt || new Date().toISOString(),
+    };
+    if (!this.state.leaveRequests) {
+      this.state.leaveRequests = [];
+    }
+    this.state.leaveRequests.unshift(newRequest);
+    this.addAuditLog(
+      orgId,
+      user,
+      "Leave Policy",
+      "APPLIED_LEAVE",
+      newRequest.id,
+      undefined,
+      `${newRequest.leaveTypeName} (${newRequest.days}d) applied for manager approval`
+    );
+    this.addNotification(orgId, {
+      title: "Leave Application Submitted",
+      message: `Your ${newRequest.leaveTypeName} application (${newRequest.startDate} to ${newRequest.endDate}) was submitted and routed to ${newRequest.managerName || "your reporting manager"}.`,
+      category: "leave",
+      link: "/tl-dashboard/apply-leave",
+    });
+    this.persist();
+    return newRequest;
+  }
+
+  public cancelLeaveRequest(orgId: string, id: string): boolean {
+    const idx = (this.state.leaveRequests || []).findIndex(
+      (l) => l.organizationId === orgId && l.id === id && l.status === "Pending"
+    );
+    if (idx >= 0) {
+      const removed = this.state.leaveRequests.splice(idx, 1)[0];
+      this.addAuditLog(
+        orgId,
+        removed.employeeName || "Sarah Chen",
+        "Leave Policy",
+        "CANCELLED_LEAVE",
+        removed.id,
+        "Pending",
+        "Cancelled by applicant"
+      );
+      this.persist();
+      return true;
+    }
+    return false;
+  }
+
   public verifyTeamTimesheet(orgId: string, timesheetId: string) {
     const item = (this.state.teamTimesheets || []).find((t) => t.organizationId === orgId && t.id === timesheetId);
     if (item) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTenant } from "@/context/TenantContext";
 import { TeamLeadProfile } from "@/lib/mock-data";
+import Link from "next/link";
 
 const FieldRow = ({
   label,
@@ -33,6 +34,7 @@ const Section = ({
   onEdit,
   onSave,
   onCancel,
+  readOnly,
 }: {
   title: string;
   children: React.ReactNode;
@@ -41,11 +43,12 @@ const Section = ({
   onEdit: () => void;
   onSave: () => void;
   onCancel: () => void;
+  readOnly?: boolean;
 }) => (
   <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
     <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/60">
       <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider">{title}</h3>
-      {!isEditing ? (
+      {!readOnly && (!isEditing ? (
         <button type="button" id={`edit-${sectionKey}-btn`} onClick={onEdit} title={`Edit ${title}`}
           className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,7 +70,7 @@ const Section = ({
             </svg>
           </button>
         </div>
-      )}
+      ))}
     </div>
     <div className="px-5 py-1">{children}</div>
   </div>
@@ -158,14 +161,24 @@ export default function TeamLeadProfilePage() {
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto pb-20 font-sans">
+      {/* Back Navigation */}
+      <div className="flex items-center pt-2">
+        <Link href="/tl-dashboard" className="inline-flex items-center text-xs font-bold text-gray-500 hover:text-blue-600 transition-colors">
+          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Dashboard
+        </Link>
+      </div>
+
       {/* Header */}
-      <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs">
+      {/* <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs">
         <div className="flex items-center space-x-2">
           <h1 className="text-xl font-bold text-gray-900 tracking-tight">My Profile</h1>
           <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-800">Team Lead</span>
         </div>
         <p className="text-xs text-gray-500 mt-0.5">Manage your personal profile, leadership details, contact information, and preferences.</p>
-      </div>
+      </div> */}
 
       {/* Hero Card */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
@@ -339,10 +352,10 @@ export default function TeamLeadProfilePage() {
       </Section>
 
       {/* Hierarchy Information */}
-      <Section title="Hierarchy Information" {...sp("hierarchy")}>
-        <FieldRow label="Reporting Manager" value={formData.reportingManager} isEditing={editingSection === "hierarchy"} />
-        <FieldRow label="Team" value={formData.team} isEditing={editingSection === "hierarchy"} />
-        <FieldRow label="Direct Reports" value={`${formData.directReportsCount} Members`} isEditing={editingSection === "hierarchy"} />
+      <Section title="Hierarchy Information" {...sp("hierarchy")} readOnly>
+        <FieldRow label="Reporting Manager" value={formData.reportingManager} isEditing={false} />
+        <FieldRow label="Team" value={formData.team} isEditing={false} />
+        <FieldRow label="Direct Reports" value={`${formData.directReportsCount} Members`} isEditing={false} />
       </Section>
 
       {/* Personal Details */}
@@ -375,10 +388,10 @@ export default function TeamLeadProfilePage() {
       </Section>
 
       {/* Identity Information */}
-      <Section title="Identity Information" {...sp("identity")}>
-        <FieldRow label="UAN" value={<span className="tracking-widest font-mono text-gray-600">{formData.uan}</span>} isEditing={editingSection === "identity"} />
-        <FieldRow label="PAN" value={<span className="tracking-widest font-mono text-gray-600">{formData.pan}</span>} isEditing={editingSection === "identity"} />
-        <FieldRow label="Aadhaar" value={<span className="tracking-widest font-mono text-gray-600">{formData.aadhaar}</span>} isEditing={editingSection === "identity"} />
+      <Section title="Identity Information" {...sp("identity")} readOnly>
+        <FieldRow label="UAN" value={<span className="tracking-widest font-mono text-gray-600">{formData.uan ? "••••••••••" : "-"}</span>} isEditing={false} />
+        <FieldRow label="PAN" value={<span className="tracking-widest font-mono text-gray-600">{formData.pan ? "••••••••••" : "-"}</span>} isEditing={false} />
+        <FieldRow label="Aadhaar" value={<span className="tracking-widest font-mono text-gray-600">{formData.aadhaar ? "••••••••••" : "-"}</span>} isEditing={false} />
       </Section>
 
       {/* Contact Details */}

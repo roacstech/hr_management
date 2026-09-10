@@ -491,8 +491,7 @@ export default function ApprovalsDeskPage() {
                       {/* Status badge: vertically centered, whitespace-nowrap preventing awkward wraps */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         {item.status === "Pending" && (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 whitespace-nowrap">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse shrink-0" />
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-500 text-amber-700 whitespace-nowrap">
                             Pending Review
                           </span>
                         )}
@@ -742,8 +741,7 @@ export default function ApprovalsDeskPage() {
                 <span className="text-gray-400 font-medium block">Status</span>
                 <div className="mt-1">
                   {selectedViewItem.status === "Pending" && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse" />
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-amber-500 text-amber-700">
                       Pending Review
                     </span>
                   )}

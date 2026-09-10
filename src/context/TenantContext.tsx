@@ -94,6 +94,8 @@ interface TenantContextValue {
   rejectTimesheetCorrection: (id: string, reviewerName?: string, reason?: string) => void;
   approveLeaveRequest: (id: string, reviewerName?: string) => void;
   rejectLeaveRequest: (id: string, reviewerName?: string, reason?: string) => void;
+  applyLeaveRequest: (request: Omit<LeaveRequest, "id" | "organizationId" | "appliedAt" | "status"> & { status?: "Pending" | "Approved" | "Rejected"; appliedAt?: string }) => LeaveRequest;
+  cancelLeaveRequest: (id: string) => boolean;
   verifyTeamTimesheet: (timesheetId: string) => void;
   submitTeamTimesheetsToHR: (weekId: string) => void;
   createTeamSpacePost: (post: Omit<TeamSpacePost, "id" | "organizationId" | "createdAt" | "reactions" | "comments">) => TeamSpacePost;
@@ -364,6 +366,21 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     showToast("Leave request rejected.", "info");
   };
 
+  const applyLeaveRequest = (request: Omit<LeaveRequest, "id" | "organizationId" | "appliedAt" | "status"> & { status?: "Pending" | "Approved" | "Rejected"; appliedAt?: string }) => {
+    const created = tenantStore.applyLeaveRequest(currentOrgId, request, teamLeadProfile.name || "Sarah Chen");
+    refreshState();
+    return created;
+  };
+
+  const cancelLeaveRequest = (id: string) => {
+    const success = tenantStore.cancelLeaveRequest(currentOrgId, id);
+    if (success) {
+      refreshState();
+      showToast("Leave application cancelled successfully.", "info");
+    }
+    return success;
+  };
+
   const verifyTeamTimesheet = (timesheetId: string) => {
     tenantStore.verifyTeamTimesheet(currentOrgId, timesheetId);
     refreshState();
@@ -472,6 +489,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         rejectTimesheetCorrection,
         approveLeaveRequest,
         rejectLeaveRequest,
+        applyLeaveRequest,
+        cancelLeaveRequest,
         verifyTeamTimesheet,
         submitTeamTimesheetsToHR,
         createTeamSpacePost,
@@ -485,27 +504,66 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {/* Floating Toast Notification Container */}
-      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none max-w-md w-full px-4">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 pointer-events-none w-max max-w-md px-4">
+        <style>{`
+          @keyframes toast-progress {
+            0% { width: 100%; }
+            100% { width: 0%; }
+          }
+        `}</style>
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-center justify-between p-3.5 rounded-lg shadow-xl text-xs font-medium border transition-all animate-in slide-in-from-bottom-3 duration-200 ${
+            className={`relative pointer-events-auto flex items-center justify-between pl-4 pr-3 py-3 rounded-lg shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border overflow-hidden transition-all animate-in slide-in-from-bottom-5 duration-300 min-w-[320px] ${
               toast.type === "error"
-                ? "bg-red-900/95 text-white border-red-700 shadow-red-900/20"
+                ? "bg-red-50 border-red-100"
                 : toast.type === "info"
-                ? "bg-slate-900/95 text-white border-slate-700 shadow-slate-900/20"
-                : "bg-emerald-900/95 text-white border-emerald-700 shadow-emerald-900/20"
+                ? "bg-blue-50 border-blue-100"
+                : "bg-[#f2fdf5] border-emerald-100"
             }`}
           >
-            <div className="flex items-center space-x-2.5">
-              <span className="w-2 h-2 rounded-full shrink-0 bg-current animate-pulse" />
-              <span>{toast.message}</span>
+            {/* Top Loading Bar */}
+            <div 
+              className={`absolute top-0 left-0 h-[3px] ${
+                toast.type === "error" ? "bg-red-500" : toast.type === "info" ? "bg-blue-500" : "bg-[#0b9669]"
+              }`} 
+              style={{ animation: 'toast-progress 4s linear forwards' }} 
+            />
+
+            <div className="flex items-center space-x-3 mt-0.5">
+              {/* Icon */}
+              {toast.type === "success" && (
+                <div className="w-[22px] h-[22px] rounded-full bg-[#0b9669] flex items-center justify-center shrink-0">
+                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+              {toast.type === "error" && (
+                <div className="w-[22px] h-[22px] rounded-full bg-red-500 flex items-center justify-center shrink-0">
+                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              )}
+              {toast.type === "info" && (
+                <div className="w-[22px] h-[22px] rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              )}
+              
+              <span className="text-[14px] font-medium text-gray-800">{toast.message}</span>
             </div>
+            
             <button
               onClick={() => dismissToast(toast.id)}
-              className="ml-3 text-white/70 hover:text-white text-base leading-none px-1"
+              className="ml-6 text-gray-500 hover:text-gray-800 cursor-pointer focus:outline-none transition-colors mt-0.5"
             >
-              ×
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         ))}

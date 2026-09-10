@@ -166,6 +166,10 @@ export interface LeaveRequest {
   reviewedBy?: string;
   reviewedAt?: string;
   rejectionReason?: string;
+  managerName?: string;
+  isHalfDay?: boolean;
+  halfDaySession?: "First Half" | "Second Half";
+  contactDuringLeave?: string;
 }
 
 export interface AttendanceRecord {
