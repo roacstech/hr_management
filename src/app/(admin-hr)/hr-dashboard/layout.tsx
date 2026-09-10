@@ -1,14 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from "react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  Search,
+  Bell,
+  Plus,
+  LogOut,
+  Sun,
+  Moon,
+  CloudSun,
+  MapPin,
+} from "lucide-react";
 import {
   HomeIcon,
   OnboardingIcon,
   LeaveTrackerIcon,
   AttendanceIcon,
-  MoreIcon,
   OperationsIcon,
   ReportsIcon,
   TrophyIcon,
@@ -19,9 +33,6 @@ import {
   CompensationIcon,
   BuildingIcon,
   GearIcon,
-  SearchIcon,
-  BellIcon,
-  PlusIcon,
   UserAvatarIcon,
   CloseIcon,
   LogoutIcon,
@@ -29,29 +40,295 @@ import {
 import EmptyState from "@/components/EmptyState";
 import { TenantProvider, useTenant } from "@/context/TenantContext";
 
-interface ServiceItem {
-  id: string;
-  title: string;
+interface SubNavItem {
+  name: string;
   path: string;
   icon: React.ComponentType<{ className?: string; size?: number }>;
+  badge?: string | number;
+  exact?: boolean;
+}
+
+interface NavGroupItem {
+  id: string;
+  name: string;
+  icon: React.ComponentType<{ className?: string; size?: number }>;
+  path?: string;
+  exact?: boolean;
+  subItems?: SubNavItem[];
 }
 
 function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     notifications,
     markNotificationAsRead,
     clearAllNotifications,
+    leaveRequests,
   } = useTenant();
 
-  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  // Theme State: 'light' default
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  // Single clean collapse state
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  // Dropdown & Drawer States
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+
+  // Search Filters
+  const [sidebarFilter, setSidebarFilter] = useState("");
   const [quickActionSearch, setQuickActionSearch] = useState("");
 
+  const notificationDrawerRef = useRef<HTMLDivElement>(null);
+  const quickAddRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const sidebarSearchRef = useRef<HTMLInputElement>(null);
+
+  const toggleCollapse = () => {
+    setIsCollapsed((prev) => !prev);
+  };
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  };
+
+  // Handle ESC key to close popups
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsQuickAddOpen(false);
+        setIsNotificationsOpen(false);
+        setIsProfileMenuOpen(false);
+        setIsMobileOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Handle Click Outside Drawers & Dropdowns
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        isNotificationsOpen &&
+        notificationDrawerRef.current &&
+        !notificationDrawerRef.current.contains(target)
+      ) {
+        const bellBtn = document.getElementById("top-bell-notification-btn");
+        if (!bellBtn || !bellBtn.contains(target)) {
+          setIsNotificationsOpen(false);
+        }
+      }
+      if (quickAddRef.current && !quickAddRef.current.contains(target)) {
+        setIsQuickAddOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isNotificationsOpen]);
+
+  const pendingLeavesCount = useMemo(
+    () => leaveRequests.filter((l) => l.status === "Pending").length,
+    [leaveRequests]
+  );
+
+  const unreadNotificationsCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
+
+  // Unified, Clean, Professional Navigation Structure (No messy tab switches!)
+  const navGroups: NavGroupItem[] = useMemo(
+    () => [
+      {
+        id: "dashboard",
+        name: "Dashboard",
+        path: "/hr-dashboard",
+        icon: HomeIcon,
+        exact: true,
+      },
+      {
+        id: "workforce",
+        name: "Employees",
+        icon: OnboardingIcon,
+        subItems: [
+          { name: "Employee Directory", path: "/hr-dashboard/employees", icon: OnboardingIcon },
+          { name: "Attendance Logs", path: "/hr-dashboard/attendance", icon: AttendanceIcon },
+          {
+            name: "Leave Tracker",
+            path: "/hr-dashboard/leave-tracker",
+            icon: LeaveTrackerIcon,
+            badge: pendingLeavesCount > 0 ? pendingLeavesCount : undefined,
+          },
+          { name: "Payroll & Compensation", path: "/hr-dashboard/payroll", icon: CompensationIcon },
+        ],
+      },
+      {
+        id: "talent",
+        name: "Hiring & Reviews",
+        icon: TrophyIcon,
+        subItems: [
+          { name: "Onboarding Pipeline", path: "/hr-dashboard/onboarding", icon: OnboardingIcon },
+          { name: "Performance Reviews", path: "/hr-dashboard/performance", icon: TrophyIcon },
+          { name: "Surveys & Culture", path: "/hr-dashboard/engagement", icon: EngagementIcon },
+        ],
+      },
+      {
+        id: "operations",
+        name: "Company & Documents",
+        icon: OperationsIcon,
+        subItems: [
+          { name: "Workforce Operations", path: "/hr-dashboard/operations", icon: OperationsIcon },
+          { name: "Tasks & Workflows", path: "/hr-dashboard/tasks", icon: TasksIcon },
+          { name: "Bulletins & CMS", path: "/hr-dashboard/cms", icon: BuildingIcon },
+          { name: "Official HR Letters", path: "/hr-dashboard/hr-letters", icon: StarIcon },
+          { name: "Business Travel", path: "/hr-dashboard/travel", icon: StarIcon },
+          { name: "Document Vault", path: "/hr-dashboard/files", icon: FolderIcon },
+          { name: "Executive Reports", path: "/hr-dashboard/reports", icon: ReportsIcon },
+        ],
+      },
+      {
+        id: "personal",
+        name: "My Workspace",
+        icon: UserAvatarIcon,
+        subItems: [
+          { name: "My Profile", path: "/portal/profile", icon: UserAvatarIcon, exact: true },
+          { name: "My Attendance", path: "/hr-dashboard/attendance?view=my", icon: AttendanceIcon },
+          { name: "My Leave Requests", path: "/hr-dashboard/leave-tracker?view=my", icon: LeaveTrackerIcon },
+          { name: "My Payslips", path: "/hr-dashboard/payroll?view=my", icon: CompensationIcon },
+        ],
+      },
+      {
+        id: "settings",
+        name: "Company Settings",
+        path: "/hr-dashboard/settings",
+        icon: GearIcon,
+      },
+    ],
+    [pendingLeavesCount]
+  );
+
+  const isItemActive = useCallback(
+    (item: { path: string; exact?: boolean }) => {
+      const isMyView = searchParams.get("view") === "my";
+      const itemHasMyView = item.path.includes("view=my");
+
+      // Disallow matching personal view items when in company view, and vice-versa
+      if (isMyView !== itemHasMyView) {
+        return false;
+      }
+
+      const itemBasePath = item.path.split("?")[0];
+      if (item.exact) {
+        return pathname === itemBasePath;
+      }
+      return pathname === itemBasePath || pathname.startsWith(itemBasePath + "/");
+    },
+    [pathname, searchParams]
+  );
+
+  const isGroupActive = useCallback(
+    (group: NavGroupItem) => {
+      if (group.path) {
+        return isItemActive({ path: group.path, exact: group.exact });
+      }
+      if (group.subItems) {
+        return group.subItems.some((sub) => isItemActive(sub));
+      }
+      return false;
+    },
+    [isItemActive]
+  );
+
+  // User-toggled open/collapsed overrides for dropdown groups
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = useCallback(
+    (groupId: string, defaultOpen: boolean) => {
+      setOpenGroups((prev) => {
+        const currentlyOpen = prev[groupId] !== undefined ? prev[groupId] : defaultOpen;
+        return {
+          ...prev,
+          [groupId]: !currentlyOpen,
+        };
+      });
+    },
+    []
+  );
+
+  // Filtered navigation for search
+  const filteredNavGroups = useMemo(() => {
+    if (!sidebarFilter.trim()) return navGroups;
+    const query = sidebarFilter.toLowerCase().trim();
+
+    return navGroups
+      .map((group) => {
+        if (group.subItems) {
+          const matchingSubs = group.subItems.filter(
+            (sub) =>
+              sub.name.toLowerCase().includes(query) ||
+              group.name.toLowerCase().includes(query)
+          );
+          if (matchingSubs.length > 0) {
+            return {
+              ...group,
+              subItems: matchingSubs,
+            };
+          }
+          return null;
+        } else {
+          if (group.name.toLowerCase().includes(query)) {
+            return group;
+          }
+          return null;
+        }
+      })
+      .filter((g): g is NavGroupItem => g !== null);
+  }, [navGroups, sidebarFilter]);
+
+  // Current active group for dynamic sidebar header and breadcrumb
+  const currentGroup = useMemo(() => {
+    for (const group of navGroups) {
+      if (group.path && isItemActive({ path: group.path, exact: group.exact })) {
+        return group;
+      }
+      if (group.subItems) {
+        for (const sub of group.subItems) {
+          if (isItemActive(sub)) {
+            return group;
+          }
+        }
+      }
+    }
+    return null;
+  }, [navGroups, isItemActive]);
+
+  // Current page title for header breadcrumb
+  const currentPageTitle = useMemo(() => {
+    if (!currentGroup) return "Dashboard";
+    if (currentGroup.path && isItemActive({ path: currentGroup.path, exact: currentGroup.exact })) {
+      return currentGroup.name;
+    }
+    if (currentGroup.subItems) {
+      for (const sub of currentGroup.subItems) {
+        if (isItemActive(sub)) {
+          return sub.name;
+        }
+      }
+    }
+    return currentGroup.name;
+  }, [currentGroup, isItemActive]);
+
+  // Quick action options
   const quickActionsList: Array<{
     title: string;
     path: string;
@@ -72,389 +349,465 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
     item.title.toLowerCase().includes(quickActionSearch.toLowerCase().trim())
   );
 
-  const offcanvasRef = useRef<HTMLDivElement>(null);
-  const notificationDrawerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const quickAddRef = useRef<HTMLDivElement>(null);
-  const profileRef = useRef<HTMLDivElement>(null);
-
-  // Main fixed sidebar dock items
-  const dockMenuItems = [
-    { name: "Dashboard", path: "/hr-dashboard", icon: HomeIcon, exact: true },
-    { name: "Employees", path: "/hr-dashboard/employees", icon: OnboardingIcon },
-    { name: "Payroll", path: "/hr-dashboard/payroll", icon: CompensationIcon },
-    { name: "Leaves", path: "/hr-dashboard/leave-tracker", icon: LeaveTrackerIcon },
-    { name: "Attendance", path: "/hr-dashboard/attendance", icon: AttendanceIcon },
-    { name: "Bulletins", path: "/hr-dashboard/cms", icon: BuildingIcon },
-    { name: "Settings", path: "/hr-dashboard/settings", icon: GearIcon },
-  ];
-
-  // Services inside the More Offcanvas Drawer
-  const servicesList: ServiceItem[] = [
-    { id: "performance", title: "Performance Appraisals", path: "/hr-dashboard/performance", icon: TrophyIcon },
-    { id: "files", title: "Document Vault", path: "/hr-dashboard/files", icon: FolderIcon },
-    { id: "engagement", title: "Employee Surveys & Culture", path: "/hr-dashboard/engagement", icon: EngagementIcon },
-    { id: "hr-letters", title: "Official HR Letters", path: "/hr-dashboard/hr-letters", icon: StarIcon },
-    { id: "travel", title: "Business Travel Requests", path: "/hr-dashboard/travel", icon: StarIcon },
-    { id: "tasks", title: "Operations Tasks", path: "/hr-dashboard/tasks", icon: TasksIcon },
-    { id: "operations", title: "Workforce Operations", path: "/hr-dashboard/operations", icon: OperationsIcon },
-    { id: "reports", title: "Executive Reports", path: "/hr-dashboard/reports", icon: ReportsIcon },
-    { id: "onboarding", title: "Candidate Pipelines", path: "/hr-dashboard/onboarding", icon: OnboardingIcon },
-  ];
-
-  const filteredServices = servicesList.filter((service) =>
-    service.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
-  );
-
-  // Focus search input when offcanvas opens
-  useEffect(() => {
-    if (isMoreOpen) {
-      const timer = setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isMoreOpen]);
-
-  // Handle ESC key to close offcanvas / drawers / popups
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsMoreOpen(false);
-        setIsQuickAddOpen(false);
-        setIsNotificationsOpen(false);
-        setIsProfileMenuOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  // Handle Click Outside Drawers & Dropdowns
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (isMoreOpen && offcanvasRef.current && !offcanvasRef.current.contains(target)) {
-        const moreBtn = document.getElementById("more-menu-toggle-btn");
-        if (!moreBtn || !moreBtn.contains(target)) {
-          setIsMoreOpen(false);
-        }
-      }
-      if (isNotificationsOpen && notificationDrawerRef.current && !notificationDrawerRef.current.contains(target)) {
-        const bellBtn = document.getElementById("top-bell-notification-btn");
-        if (!bellBtn || !bellBtn.contains(target)) {
-          setIsNotificationsOpen(false);
-        }
-      }
-      if (quickAddRef.current && !quickAddRef.current.contains(target)) {
-        setIsQuickAddOpen(false);
-      }
-      if (profileRef.current && !profileRef.current.contains(target)) {
-        setIsProfileMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isMoreOpen, isNotificationsOpen]);
-
-  const isDockItemActive = (item: { path: string; exact?: boolean }) => {
-    if (item.exact) {
-      return pathname === item.path;
-    }
-    return pathname === item.path || pathname.startsWith(item.path + "/");
-  };
-
-  const isMoreActive =
-    isMoreOpen ||
-    servicesList.some((s) => pathname === s.path || pathname.startsWith(s.path + "/"));
-
-  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
+  const isLight = theme === "light";
 
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-[#f8fafc] text-gray-900 antialiased font-sans">
-      {/* 1. FIXED SLIM DARK DOCK SIDEBAR */}
-      <aside className="w-[76px] h-screen shrink-0 bg-[#12182c] flex flex-col items-center justify-between py-3.5 px-1.5 border-r border-[#1e2642] z-30 select-none">
-        <div className="w-full flex flex-col items-center">
-          {/* Logo Brand Mark */}
-          <Link
-            href="/hr-dashboard"
-            className="flex flex-col items-center group transition-transform active:scale-95 mb-4"
-            title="CrewSync HR Portal"
-          >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-sm shadow-md shadow-blue-500/20 group-hover:scale-105 transition-all duration-200">
-              C
-            </div>
-          </Link>
-
-          {/* Primary Nav Menu List */}
-          <nav className="w-full flex flex-col items-center space-y-2">
-            {dockMenuItems.map((item) => {
-              const active = isDockItemActive(item);
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  key={item.name}
-                  href={item.path}
-                  onClick={() => setIsMoreOpen(false)}
-                  className="flex flex-col items-center group w-full focus:outline-none"
-                  title={item.name}
-                >
-                  <div
-                    className={`w-[36px] h-[36px] rounded-lg flex items-center justify-center transition-all duration-200 ${
-                      active && !isMoreOpen
-                        ? "bg-[#007aff] text-white shadow-md shadow-blue-600/35 scale-100 ring-2 ring-blue-400/20"
-                        : "bg-[#1a223e]/70 text-[#93a2c7] hover:bg-[#222c50] hover:text-white border border-[#242f55]/60 hover:scale-105"
-                    }`}
-                  >
-                    <Icon className="w-[17px] h-[17px]" size={17} />
-                  </div>
-                  <span
-                    className={`text-[9px] font-medium mt-1 text-center leading-tight tracking-tight max-w-[70px] transition-colors duration-200 ${
-                      active && !isMoreOpen
-                        ? "text-white font-semibold"
-                        : "text-[#8ea0c9] group-hover:text-white"
-                    }`}
-                  >
-                    {item.name}
-                  </span>
-                </Link>
-              );
-            })}
-
-            {/* "More" Toggle Button */}
-            <button
-              id="more-menu-toggle-btn"
-              type="button"
-              onClick={() => setIsMoreOpen((prev) => !prev)}
-              className="flex flex-col items-center group w-full focus:outline-none cursor-pointer pt-0.5"
-              title="More HR Modules"
-            >
-              <div
-                className={`w-[36px] h-[36px] rounded-lg flex items-center justify-center transition-all duration-200 ${
-                  isMoreActive
-                    ? "bg-[#007aff] text-white shadow-md shadow-blue-600/35 scale-100 ring-2 ring-blue-400/20"
-                    : "bg-[#1a223e]/70 text-[#93a2c7] hover:bg-[#222c50] hover:text-white border border-[#242f55]/60 hover:scale-105"
-                }`}
-              >
-                <MoreIcon className="w-[17px] h-[17px]" size={17} />
-              </div>
-              <span
-                className={`text-[9px] font-medium mt-1 text-center leading-tight tracking-tight max-w-[70px] transition-colors duration-200 ${
-                  isMoreActive ? "text-white font-semibold" : "text-[#8ea0c9] group-hover:text-white"
-                }`}
-              >
-                More
-              </span>
-            </button>
-          </nav>
-        </div>
-
-        {/* Bottom Shortcut Back to Login */}
-        <div className="w-full pt-3 flex flex-col items-center border-t border-[#1e2748]">
-          <Link
-            href="/login"
-            className="w-7 h-7 rounded-md bg-[#1d2645]/50 hover:bg-red-500/20 text-gray-400 hover:text-red-400 flex items-center justify-center transition-all duration-200 text-xs font-semibold"
-            title="Switch User / Logout"
-          >
-            <LogoutIcon className="w-3.5 h-3.5" size={14} />
-          </Link>
-          <span className="text-[8.5px] text-gray-400 mt-0.5">Logout</span>
-        </div>
-      </aside>
-
-      {/* 2. SERVICES OFFCANVAS DRAWER */}
-      {isMoreOpen && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/35 z-35 backdrop-blur-[1px] transition-opacity duration-200"
-            onClick={() => setIsMoreOpen(false)}
-          />
-          <div
-            ref={offcanvasRef}
-            className="fixed left-[76px] top-0 h-screen w-80 sm:w-[330px] bg-white z-40 shadow-2xl border-r border-gray-200 flex flex-col animate-in slide-in-from-left duration-200 ease-out"
-          >
-            <div className="p-4 border-b border-gray-100 space-y-3">
-              <div className="relative flex items-center">
-                <SearchIcon className="w-4 h-4 text-gray-400 absolute left-3 pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search HR modules..."
-                  className="w-full bg-white text-xs sm:text-sm text-gray-800 placeholder-gray-400 pl-9 pr-8 py-2 rounded-md border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition shadow-xs"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 text-gray-400 hover:text-gray-600"
-                  >
-                    <CloseIcon className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-0.5 px-0.5">
-                <h3 className="text-xs sm:text-sm font-bold text-gray-900 tracking-tight">
-                  Additional Services
-                </h3>
-                <Link
-                  href="/hr-dashboard/settings"
-                  onClick={() => setIsMoreOpen(false)}
-                  className="inline-flex items-center text-[11px] sm:text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-                >
-                  <GearIcon className="w-3 h-3 mr-1" />
-                  Settings
-                </Link>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {filteredServices.length > 0 ? (
-                filteredServices.map((service) => {
-                  const Icon = service.icon;
-                  const active = pathname === service.path;
-
-                  return (
-                    <button
-                      key={service.id}
-                      type="button"
-                      onClick={() => {
-                        setIsMoreOpen(false);
-                        router.push(service.path);
-                      }}
-                      className={`w-full flex items-center px-3.5 py-2.5 rounded-md border text-left transition-all duration-150 group cursor-pointer ${
-                        active
-                          ? "bg-blue-50/80 border-blue-200 shadow-xs text-blue-700"
-                          : "bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50/80 hover:shadow-xs text-gray-800"
-                      }`}
-                    >
-                      <div
-                        className={`w-7 h-7 rounded-sm flex items-center justify-center mr-3 transition-colors shrink-0 ${
-                          active
-                            ? "text-blue-600 bg-blue-100/60"
-                            : "text-gray-600 group-hover:text-blue-600 group-hover:bg-blue-50"
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" size={16} />
-                      </div>
-                      <span className="text-xs sm:text-sm font-medium tracking-tight">
-                        {service.title}
-                      </span>
-                    </button>
-                  );
-                })
-              ) : (
-                <EmptyState
-                  title="No service found"
-                  description={`No services match "${searchQuery}"`}
-                  className="my-4 p-4 border-none shadow-none"
-                />
-              )}
-            </div>
-          </div>
-        </>
+      {/* MOBILE BACKDROP */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-xs transition-opacity"
+          onClick={() => setIsMobileOpen(false)}
+        />
       )}
 
-      {/* 3. NOTIFICATIONS OFFCANVAS DRAWER */}
-      <div
-        className={`fixed inset-0 bg-black/30 z-40 backdrop-blur-[1px] transition-opacity duration-300 ease-out ${
-          isNotificationsOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={() => setIsNotificationsOpen(false)}
-      />
-
-      <div
-        ref={notificationDrawerRef}
-        className={`fixed right-0 top-0 h-screen w-80 sm:w-[380px] bg-[#f8fafc] z-50 shadow-2xl border-l border-gray-200 flex flex-col transition-transform duration-300 ease-out transform ${
-          isNotificationsOpen ? "translate-x-0" : "translate-x-full pointer-events-none"
+      {/* 1. CLEAN SLEEK SIDEBAR */}
+      <aside
+        className={`fixed lg:static top-0 bottom-0 left-0 z-50 flex flex-col justify-between select-none transition-all duration-300 ease-in-out ${
+          isLight ? "light-sidebar" : "dark-sidebar"
+        } ${isCollapsed ? "w-[72px]" : "w-64"} ${
+          isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-2">
-            <h3 className="text-base font-bold text-gray-900 tracking-tight">
-              Tenant Notifications
-            </h3>
-            {unreadNotificationsCount > 0 && (
-              <span
-                suppressHydrationWarning
-                className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700"
-              >
-                {unreadNotificationsCount} New
-              </span>
+        {/* BRAND & HEADER - CLEAN MINIMAL */}
+        <div
+          className={`shrink-0 px-4 py-4 flex items-center ${
+            isLight ? "light-sidebar-header" : "dark-sidebar-header"
+          }`}
+        >
+          <Link
+            href="/hr-dashboard"
+            onClick={() => setIsMobileOpen(false)}
+            className="flex items-center space-x-3 overflow-hidden group focus:outline-none w-full"
+            title="CrewSync HR Suite"
+          >
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0 group-hover:scale-105 transition-transform duration-200">
+              C
+            </div>
+
+            {!isCollapsed && (
+              <div className="min-w-0 flex-1">
+                <span
+                  className={`font-bold text-[14.5px] tracking-tight truncate block ${
+                    isLight ? "text-gray-900" : "text-white"
+                  }`}
+                >
+                  CrewSync
+                </span>
+                <span
+                  className={`text-[11px] font-medium block -mt-0.5 truncate ${
+                    isLight ? "text-gray-500" : "text-slate-400"
+                  }`}
+                >
+                  HR Portal
+                </span>
+              </div>
             )}
-          </div>
+          </Link>
+
+          {/* Mobile Close Button */}
           <button
             type="button"
-            onClick={() => setIsNotificationsOpen(false)}
-            className="w-7 h-7 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 flex items-center justify-center transition cursor-pointer"
-            title="Close"
+            onClick={() => setIsMobileOpen(false)}
+            className={`lg:hidden w-8 h-8 rounded-lg flex items-center justify-center transition focus:outline-none cursor-pointer ml-auto ${
+              isLight
+                ? "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                : "text-slate-400 hover:text-white hover:bg-white/[0.08]"
+            }`}
+            title="Close Sidebar"
           >
-            <CloseIcon className="w-3.5 h-3.5" size={14} />
+            <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 p-4 overflow-y-auto space-y-3">
-          {notifications.length === 0 ? (
-            <div className="bg-white rounded-lg p-6 border border-gray-200/80 shadow-xs flex flex-col items-center justify-center text-center mt-8">
-              <EmptyState
-                title="No Notifications Found"
-                description="Everything is up to date for this organization."
-                className="border-none shadow-none p-0"
+        {/* SEARCH / FILTER (Expanded Mode Only) */}
+        {!isCollapsed && (
+          <div className="px-3 pt-2 pb-1 shrink-0">
+            <div className="relative flex items-center">
+              <Search
+                className={`w-3.5 h-3.5 absolute left-3 pointer-events-none ${
+                  isLight ? "text-gray-400" : "text-slate-400"
+                }`}
               />
-            </div>
-          ) : (
-            <>
-              <div className="flex justify-between items-center px-1">
-                <span className="text-xs font-semibold text-gray-500">Activity Stream</span>
+              <input
+                ref={sidebarSearchRef}
+                type="text"
+                value={sidebarFilter}
+                onChange={(e) => setSidebarFilter(e.target.value)}
+                placeholder="Search modules..."
+                className={`w-full text-xs pl-8 pr-7 py-2 rounded-lg border focus:outline-none focus:ring-1 transition shadow-2xs ${
+                  isLight
+                    ? "bg-gray-50/80 text-gray-800 placeholder-gray-400 border-gray-200 focus:bg-white focus:border-blue-500 focus:ring-blue-500/20"
+                    : "bg-[#141b2d] text-slate-200 placeholder-slate-400 border-slate-700/60 focus:border-blue-500 focus:ring-blue-500/30"
+                }`}
+              />
+              {sidebarFilter && (
                 <button
                   type="button"
-                  onClick={() => clearAllNotifications()}
-                  className="text-xs text-blue-600 hover:underline font-medium"
+                  onClick={() => setSidebarFilter("")}
+                  className={`absolute right-2.5 ${isLight ? "text-gray-400 hover:text-gray-700" : "text-slate-400 hover:text-white"}`}
+                  title="Clear search"
                 >
-                  Clear all
+                  <X size={13} />
                 </button>
-              </div>
+              )}
+            </div>
+          </div>
+        )}
 
-              {notifications.map((n) => (
-                <div
-                  key={n.id}
-                  onClick={() => {
-                    markNotificationAsRead(n.id);
-                    if (n.link) {
-                      setIsNotificationsOpen(false);
-                      router.push(n.link);
-                    }
-                  }}
-                  className={`p-3.5 rounded-lg border text-xs space-y-1.5 transition cursor-pointer ${
-                    !n.read
-                      ? "bg-white border-blue-200 shadow-xs ring-1 ring-blue-50"
-                      : "bg-white/80 border-gray-200/80 text-gray-600 opacity-80 hover:opacity-100"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-gray-900 leading-tight">{n.title}</span>
-                    <span className="text-[10px] text-gray-400 font-medium">{n.timestamp}</span>
-                  </div>
-                  <p className="text-gray-600 leading-relaxed text-[11.5px]">{n.message}</p>
+        {/* NAVIGATION LINKS WITH CLEAN ACCORDION DROPDOWNS */}
+        <div
+          className={`flex-1 overflow-y-auto px-2.5 py-3 space-y-1 ${
+            isLight ? "light-scrollbar" : "dark-scrollbar"
+          }`}
+        >
+          {filteredNavGroups.length > 0 ? (
+            filteredNavGroups.map((group) => {
+              const Icon = group.icon;
+              const hasSubItems = Boolean(group.subItems && group.subItems.length > 0);
+              const groupActive = isGroupActive(group);
+              const isGroupOpen = Boolean(
+                sidebarFilter.trim()
+                  ? true
+                  : openGroups[group.id] !== undefined
+                  ? openGroups[group.id]
+                  : groupActive
+              );
+
+              // 1. Direct Link (Dashboard, Company Settings)
+              if (!hasSubItems && group.path) {
+                const active = isItemActive({ path: group.path, exact: group.exact });
+
+                return (
+                  <Link
+                    key={group.id}
+                    href={group.path}
+                    onClick={() => setIsMobileOpen(false)}
+                    title={isCollapsed ? group.name : undefined}
+                    className={`group relative flex items-center rounded-xl transition-[background-color,box-shadow,color] duration-150 select-none ${
+                      isCollapsed ? "w-10 h-10 mx-auto justify-center" : "px-3 py-2.5 text-[13px]"
+                    } ${
+                      active
+                        ? isLight
+                          ? "bg-blue-600 text-white font-bold shadow-[0_2.5px_0_#1d4ed8,0_5px_10px_rgba(37,99,235,0.22),inset_0_1px_0_rgba(255,255,255,0.28)] border border-blue-600 [text-shadow:0_1px_1px_rgba(0,0,0,0.25)]"
+                          : "dark-sidebar-nav-active text-white font-bold shadow-[0_2.5px_0_#1e3a8a,0_5px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] border border-blue-500/40 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]"
+                        : isLight
+                        ? "border border-transparent text-gray-700 hover:bg-slate-100/90 hover:text-gray-900 font-medium"
+                        : "border border-transparent text-slate-300 hover:text-white hover:bg-white/[0.08] font-medium"
+                    }`}
+                  >
+                    <div
+                      className={`flex items-center justify-center shrink-0 ${
+                        active
+                          ? "text-white"
+                          : isLight
+                          ? "text-gray-500 group-hover:text-blue-600"
+                          : "text-slate-400 group-hover:text-blue-400"
+                      }`}
+                    >
+                      <Icon className={isCollapsed ? "w-5 h-5" : "w-4 h-4 mr-3"} size={isCollapsed ? 20 : 16} />
+                    </div>
+
+                    {!isCollapsed && <span className="truncate flex-1 tracking-tight">{group.name}</span>}
+
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-3 px-2.5 py-1 rounded-md bg-gray-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 shadow-xl">
+                        {group.name}
+                      </div>
+                    )}
+                  </Link>
+                );
+              }
+
+              // 2. Dropdown Group (Workforce, Talent, Operations, My Personal Space)
+              return (
+                <div key={group.id} className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isCollapsed) {
+                        setIsCollapsed(false);
+                      }
+                      toggleGroup(group.id, groupActive);
+                    }}
+                    title={isCollapsed ? group.name : undefined}
+                    className={`group relative w-full flex items-center rounded-xl transition-[background-color,box-shadow,color] duration-150 select-none cursor-pointer ${
+                      isCollapsed ? "w-10 h-10 mx-auto justify-center" : "px-3 py-2.5 text-[13px]"
+                    } ${
+                      groupActive && !isGroupOpen
+                        ? isLight
+                          ? "bg-blue-50 text-blue-700 font-bold border border-blue-200/80 shadow-[0_2px_0_#bfdbfe,0_3px_6px_rgba(37,99,235,0.08),inset_0_1px_0_#ffffff] [text-shadow:0_1px_0_rgba(255,255,255,0.9)]"
+                          : "bg-blue-950/40 text-blue-300 font-bold border border-blue-800/60 shadow-[0_2px_0_#172554,inset_0_1px_0_rgba(255,255,255,0.08)] [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]"
+                        : isLight
+                        ? "border border-transparent text-gray-700 hover:bg-slate-100/90 hover:text-gray-900 font-medium"
+                        : "border border-transparent text-slate-300 hover:text-white hover:bg-white/[0.08] font-medium"
+                    }`}
+                  >
+                    <div
+                      className={`flex items-center justify-center shrink-0 ${
+                        groupActive
+                          ? isLight
+                            ? "text-blue-600"
+                            : "text-blue-400"
+                          : isLight
+                          ? "text-gray-500 group-hover:text-blue-600"
+                          : "text-slate-400 group-hover:text-blue-400"
+                      }`}
+                    >
+                      <Icon className={isCollapsed ? "w-5 h-5" : "w-4 h-4 mr-3"} size={isCollapsed ? 20 : 16} />
+                    </div>
+
+                    {!isCollapsed && (
+                      <>
+                        <span className="truncate flex-1 tracking-tight text-left">{group.name}</span>
+                        <ChevronDown
+                          size={15}
+                          className={`transition-transform duration-200 text-gray-400 group-hover:text-gray-700 ${
+                            isGroupOpen ? "rotate-180 text-blue-600" : ""
+                          }`}
+                        />
+                      </>
+                    )}
+
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-3 px-2.5 py-1 rounded-md bg-gray-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 shadow-xl">
+                        {group.name}
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Dropdown Sub-Items List */}
+                  {!isCollapsed && isGroupOpen && group.subItems && (
+                    <div
+                      className={`ml-5 pl-2.5 py-0.5 space-y-0.5 border-l-2 transition-all duration-200 ${
+                        isLight ? "border-gray-200" : "border-slate-800"
+                      }`}
+                    >
+                      {group.subItems.map((sub) => {
+                        const active = isItemActive(sub);
+                        const SubIcon = sub.icon;
+
+                        return (
+                          <Link
+                            key={sub.name + sub.path}
+                            href={sub.path}
+                            onClick={() => {
+                              setIsMobileOpen(false);
+                              setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
+                            }}
+                            className={`group flex items-center px-2.5 py-1.5 rounded-lg text-xs transition-[background-color,box-shadow,color] duration-150 select-none ${
+                              active
+                                ? isLight
+                                  ? "bg-blue-600 text-white font-bold shadow-[0_2px_0_#1d4ed8,0_3px_6px_rgba(37,99,235,0.22),inset_0_1px_0_rgba(255,255,255,0.25)] border border-blue-600 [text-shadow:0_1px_1px_rgba(0,0,0,0.25)]"
+                                  : "dark-sidebar-nav-active text-white font-bold shadow-[0_2px_0_#1e3a8a,0_4px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] border border-blue-500/40 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]"
+                                : isLight
+                                ? "border border-transparent text-gray-600 hover:text-gray-900 hover:bg-slate-100 font-medium"
+                                : "border border-transparent text-slate-400 hover:text-white hover:bg-white/[0.06] font-medium"
+                            }`}
+                          >
+                            <SubIcon
+                              className={`w-3.5 h-3.5 mr-2 shrink-0 ${
+                                active
+                                  ? "text-white"
+                                  : isLight
+                                  ? "text-gray-400 group-hover:text-blue-600"
+                                  : "text-slate-500 group-hover:text-blue-400"
+                              }`}
+                              size={14}
+                            />
+                            <span className="truncate flex-1">{sub.name}</span>
+                            {sub.badge !== undefined && (
+                              <span
+                                className={`ml-1.5 px-1.5 py-0.5 text-[9.5px] font-bold rounded-full ${
+                                  active
+                                    ? "bg-white/20 text-white"
+                                    : "bg-blue-100 text-blue-700"
+                                }`}
+                              >
+                                {sub.badge}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </>
+              );
+            })
+          ) : (
+            <div className="py-6 px-2 text-center text-xs text-gray-400">
+              <p>No modules found</p>
+              <button
+                type="button"
+                onClick={() => setSidebarFilter("")}
+                className="mt-2 text-blue-600 hover:underline font-medium text-xs"
+              >
+                Clear filter
+              </button>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* 4. MAIN WORKSPACE VIEW */}
+        {/* BOTTOM USER & CONTROLS FOOTER */}
+        <div
+          className={`shrink-0 p-3 border-t space-y-2 ${
+            isLight
+              ? "border-gray-200/80 bg-gray-50/70"
+              : "border-white/[0.06] bg-[#070b13]/90"
+          }`}
+        >
+          {/* User Profile Card */}
+          <div
+            className={`flex items-center rounded-xl p-1.5 transition ${
+              isCollapsed
+                ? "justify-center"
+                : isLight
+                ? "space-x-2.5 bg-white border border-gray-200/80 shadow-2xs"
+                : "space-x-2.5 bg-white/[0.03] border border-white/[0.04]"
+            }`}
+          >
+            <div className="relative shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                AP
+              </div>
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ${
+                  isLight ? "ring-white" : "ring-[#090d16]"
+                }`}
+              />
+            </div>
+
+            {!isCollapsed && (
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`text-xs font-bold truncate leading-tight ${
+                    isLight ? "text-gray-900" : "text-white"
+                  }`}
+                >
+                  Amira Patel
+                </p>
+                <p
+                  className={`text-[10px] truncate leading-tight mt-0.5 ${
+                    isLight ? "text-gray-500" : "text-slate-400"
+                  }`}
+                >
+                  HR Admin
+                </p>
+              </div>
+            )}
+
+            {!isCollapsed && (
+              <div className="flex items-center space-x-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className={`p-1.5 rounded-lg transition cursor-pointer ${
+                    isLight
+                      ? "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                      : "text-slate-400 hover:text-white hover:bg-white/[0.08]"
+                  }`}
+                  title={isLight ? "Dark Theme" : "Light Theme"}
+                >
+                  {isLight ? <Moon size={14} /> : <Sun size={14} className="text-amber-400" />}
+                </button>
+                <Link
+                  href="/login"
+                  className={`p-1.5 rounded-lg transition ${
+                    isLight
+                      ? "text-gray-400 hover:text-rose-600 hover:bg-rose-50"
+                      : "text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+                  }`}
+                  title="Sign Out"
+                >
+                  <LogOut size={14} />
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Minimal Collapse Button */}
+          {!isCollapsed ? (
+            <button
+              type="button"
+              onClick={toggleCollapse}
+              className={`w-full py-1.5 px-2.5 rounded-xl transition-[background-color,box-shadow,color] duration-150 text-xs font-semibold flex items-center justify-center cursor-pointer select-none ${
+                isLight
+                  ? "text-gray-700 hover:text-gray-900 hover:bg-gray-100 bg-white border border-gray-200/90 shadow-[0_2px_0_#e2e8f0,0_3px_6px_rgba(0,0,0,0.04),inset_0_1px_0_#ffffff] [text-shadow:0_1px_0_rgba(255,255,255,0.9)]"
+                  : "text-slate-200 hover:text-white hover:bg-white/[0.08] bg-white/[0.04] border border-white/[0.08] shadow-[0_2px_0_#0f172a,inset_0_1px_0_rgba(255,255,255,0.06)]"
+              }`}
+              title="Collapse Sidebar"
+            >
+              <ChevronLeft size={14} />
+              <span className="ml-1 text-[11px]">Collapse</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={toggleCollapse}
+              className={`w-full h-8 rounded-xl flex items-center justify-center transition-[background-color,box-shadow,color] duration-150 cursor-pointer select-none ${
+                isLight
+                  ? "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-white border border-gray-200/90 shadow-[0_2px_0_#e2e8f0,0_3px_6px_rgba(0,0,0,0.04),inset_0_1px_0_#ffffff]"
+                  : "text-slate-200 hover:text-white hover:bg-white/[0.08] bg-white/[0.04] border border-white/[0.08] shadow-[0_2px_0_#0f172a,inset_0_1px_0_rgba(255,255,255,0.06)]"
+              }`}
+              title="Expand Sidebar"
+            >
+              <ChevronRight size={15} />
+            </button>
+          )}
+        </div>
+      </aside>
+
+      {/* 2. MAIN WORKSPACE VIEW */}
       <div className="flex-1 h-screen flex flex-col min-w-0 overflow-hidden">
-        {/* Sleek Enterprise Top Navbar */}
-        <header className="h-14 bg-[#141b34] border-b border-[#1e2748] flex items-center justify-between px-5 shrink-0 z-20 select-none">
-          {/* Left: Top Navbar Left Spacer */}
-          <div className="flex items-center space-x-3" />
+        {/* Enterprise Top Navbar */}
+        <header className="h-16 bg-white border-b border-gray-200/80 flex items-center justify-between px-4 sm:px-6 shrink-0 z-20 select-none gap-3 shadow-xs">
+          {/* Left: Mobile Menu Toggle & Clean Breadcrumb (NO messy badges!) */}
+          <div className="flex items-center space-x-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsMobileOpen(true)}
+              className="lg:hidden w-9 h-9 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 flex items-center justify-center transition focus:outline-none cursor-pointer"
+              title="Open Navigation"
+            >
+              <Menu size={20} />
+            </button>
 
-          {/* TOP RIGHT CORNER MENUS */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Clean Breadcrumb without messy badges */}
+            <div className="flex items-center space-x-2 text-xs sm:text-sm font-medium text-gray-500 min-w-0">
+              {currentGroup && currentGroup.name !== currentPageTitle && (
+                <>
+                  <span className="hidden md:inline hover:text-gray-700 transition">
+                    {currentGroup.name}
+                  </span>
+                  <span className="hidden md:inline text-gray-300">/</span>
+                </>
+              )}
+              <h1 className="font-bold text-gray-900 truncate tracking-tight text-sm sm:text-base">
+                {currentPageTitle}
+              </h1>
+            </div>
+          </div>
+
+          {/* Right Corner Menus */}
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+            {/* Weather & Location Indicator (Left of New Action) */}
+            <div
+              className="hidden sm:flex items-center gap-2.5 h-9 px-3 rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 text-xs select-none transition-colors shadow-2xs cursor-default"
+              title="Today's Weather: 24°C Sunny · San Francisco HQ"
+            >
+              <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                <MapPin size={13} className="text-blue-600 shrink-0" />
+                <span className="truncate max-w-[130px] md:max-w-none">San Francisco HQ</span>
+              </div>
+              <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+              <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                <CloudSun size={15} className="text-amber-500 shrink-0" />
+                <span>24°C</span>
+                <span className="text-[11px] font-normal text-slate-400 hidden md:inline">Sunny</span>
+              </div>
+            </div>
+
             {/* 1. Quick Add Button (+) */}
             <div className="relative" ref={quickAddRef}>
               <button
@@ -464,11 +817,11 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
                   setIsNotificationsOpen(false);
                   setIsProfileMenuOpen(false);
                 }}
-                className="h-8 px-2.5 rounded-lg bg-[#007aff] hover:bg-[#006ee0] active:scale-95 text-white flex items-center space-x-1.5 transition-all duration-150 shadow-md shadow-blue-500/25 cursor-pointer focus:outline-none text-xs font-semibold"
-                title="Quick Create"
+                className="h-9 px-3 sm:px-3.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-95 text-white flex items-center space-x-1.5 transition-all duration-150 shadow-sm shadow-blue-500/25 cursor-pointer focus:outline-none text-xs font-semibold"
+                title="Quick Action"
               >
-                <PlusIcon className="w-3.5 h-3.5 text-white" size={14} />
-                {/* <span className="hidden sm:inline">Quick Action</span> */}
+                <Plus size={15} className="text-white" />
+                <span className="hidden sm:inline">New Action</span>
               </button>
 
               {/* Quick Add Dropdown Menu */}
@@ -503,7 +856,7 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
                               setIsQuickAddOpen(false);
                               setQuickActionSearch("");
                             }}
-                            className="flex items-center px-3 py-2 text-xs font-semibold text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition group"
+                            className="flex items-center px-3 py-2 text-xs font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 rounded-lg transition group"
                           >
                             <Icon
                               className="w-4 h-4 mr-2.5 text-gray-400 group-hover:text-blue-600 transition-colors shrink-0"
@@ -521,17 +874,7 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* 2. Search Icon Button */}
-            <button
-              type="button"
-              onClick={() => setIsMoreOpen(true)}
-              className="w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none"
-              title="Search HR Modules"
-            >
-              <SearchIcon className="w-4 h-4" size={16} />
-            </button>
-
-            {/* 3. Notification Bell Icon */}
+            {/* 2. Notification Bell Icon */}
             <button
               id="top-bell-notification-btn"
               type="button"
@@ -540,30 +883,21 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
                 setIsQuickAddOpen(false);
                 setIsProfileMenuOpen(false);
               }}
-              className="w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none relative"
+              className="w-9 h-9 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none relative"
               title="Notifications"
             >
-              <BellIcon className="w-4 h-4" size={16} />
+              <Bell size={18} />
               {unreadNotificationsCount > 0 && (
                 <span
                   suppressHydrationWarning
-                  className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-blue-500 text-white text-[9.5px] font-bold flex items-center justify-center ring-2 ring-[#141b34]"
+                  className="absolute top-1 right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-blue-600 text-white text-[9.5px] font-bold flex items-center justify-center ring-2 ring-white"
                 >
                   {unreadNotificationsCount}
                 </span>
               )}
             </button>
 
-            {/* 4. Settings Gear Icon */}
-            <Link
-              href="/hr-dashboard/settings"
-              className="w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none"
-              title="Company Settings"
-            >
-              <GearIcon className="w-4 h-4" size={16} />
-            </Link>
-
-            {/* 5. User Avatar Icon */}
+            {/* 3. User Avatar Icon & Simple Clean Dropdown */}
             <div className="relative" ref={profileRef}>
               <button
                 type="button"
@@ -572,14 +906,15 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
                   setIsQuickAddOpen(false);
                   setIsNotificationsOpen(false);
                 }}
-                className="w-8 h-8 rounded-lg border border-white/20 hover:border-blue-400 bg-white/10 transition cursor-pointer flex items-center justify-center focus:outline-none overflow-hidden"
+                className="w-9 h-9 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 transition cursor-pointer flex items-center justify-center focus:outline-none overflow-hidden"
                 title="Tenant Admin Account"
               >
-                <UserAvatarIcon className="w-5 h-5 text-gray-200" size={20} />
+                <span className="text-xs font-bold text-blue-700">AP</span>
               </button>
 
+              {/* Clean Profile Menu with NO redundant links */}
               {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-3 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
                   <div className="px-4 py-2.5 border-b border-gray-100 flex items-center space-x-2.5">
                     <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-xs">
                       AP
@@ -587,32 +922,23 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-gray-900 leading-tight truncate">Amira Patel</p>
                       <p className="text-[11px] text-gray-500 truncate leading-tight mt-0.5">
-                        HR Operations Director
+                        HR Admin
                       </p>
-                      <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-emerald-100 text-emerald-800">
-                        Tenant Admin
-                      </span>
                     </div>
                   </div>
+
                   <Link
-                    href="/hr-dashboard/settings"
+                    href="/portal/profile"
                     onClick={() => setIsProfileMenuOpen(false)}
                     className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition font-medium"
                   >
-                    <GearIcon className="w-3.5 h-3.5 mr-2 text-gray-400" size={15} />
-                    Company Settings & Shifts
+                    <UserAvatarIcon className="w-4 h-4 mr-2 text-gray-400" size={16} />
+                    View My Profile
                   </Link>
-                  <Link
-                    href="/hr-dashboard/settings?tab=subscription"
-                    onClick={() => setIsProfileMenuOpen(false)}
-                    className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition font-medium"
-                  >
-                    <BuildingIcon className="w-3.5 h-3.5 mr-2 text-gray-400" size={15} />
-                    Billing & Subscription
-                  </Link>
+
                   <Link
                     href="/login"
-                    className="flex items-center px-4 py-2 text-red-600 hover:bg-red-50 transition font-semibold border-t border-gray-100 mt-1"
+                    className="flex items-center px-4 py-2.5 text-red-600 hover:bg-red-50 transition font-medium border-t border-gray-100"
                   >
                     <LogoutIcon className="w-3.5 h-3.5 mr-2 text-red-500" size={15} />
                     Sign Out
@@ -623,8 +949,96 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* Independently Scrollable Page Workspace Area */}
-        <main className="flex-1 overflow-y-auto p-6 sm:p-8 bg-[#f8fafc]">
+        {/* 3. NOTIFICATIONS SLIDE-OVER DRAWER */}
+        <div
+          className={`fixed inset-0 bg-black/30 z-50 backdrop-blur-xs transition-opacity duration-300 ease-out ${
+            isNotificationsOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
+          onClick={() => setIsNotificationsOpen(false)}
+        />
+
+        <div
+          ref={notificationDrawerRef}
+          className={`fixed right-0 top-0 h-screen w-80 sm:w-[380px] bg-[#f8fafc] z-50 shadow-2xl border-l border-gray-200 flex flex-col transition-transform duration-300 ease-out transform ${
+            isNotificationsOpen ? "translate-x-0" : "translate-x-full pointer-events-none"
+          }`}
+        >
+          <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
+            <div className="flex items-center space-x-2">
+              <h3 className="text-base font-bold text-gray-900 tracking-tight">
+                Tenant Notifications
+              </h3>
+              {unreadNotificationsCount > 0 && (
+                <span
+                  suppressHydrationWarning
+                  className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700"
+                >
+                  {unreadNotificationsCount} New
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsNotificationsOpen(false)}
+              className="w-7 h-7 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 flex items-center justify-center transition cursor-pointer"
+              title="Close"
+            >
+              <CloseIcon className="w-3.5 h-3.5" size={14} />
+            </button>
+          </div>
+
+          <div className="flex-1 p-4 overflow-y-auto space-y-3">
+            {notifications.length === 0 ? (
+              <div className="bg-white rounded-lg p-6 border border-gray-200/80 shadow-xs flex flex-col items-center justify-center text-center mt-8">
+                <EmptyState
+                  title="No Notifications Found"
+                  description="Everything is up to date for this organization."
+                  className="border-none shadow-none p-0"
+                />
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-xs font-semibold text-gray-500">Activity Stream</span>
+                  <button
+                    type="button"
+                    onClick={() => clearAllNotifications()}
+                    className="text-xs text-blue-600 hover:underline font-medium"
+                  >
+                    Clear all
+                  </button>
+                </div>
+
+                {notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => {
+                      markNotificationAsRead(n.id);
+                      if (n.link) {
+                        setIsNotificationsOpen(false);
+                        router.push(n.link);
+                      }
+                    }}
+                    className={`p-3.5 rounded-xl border text-xs space-y-1.5 transition cursor-pointer ${
+                      !n.read
+                        ? "bg-white border-blue-200 shadow-xs ring-1 ring-blue-50"
+                        : "bg-white/80 border-gray-200/80 text-gray-600 opacity-80 hover:opacity-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-gray-900 leading-tight">{n.title}</span>
+                      <span className="text-[10px] text-gray-400 font-medium">{n.timestamp}</span>
+                    </div>
+                    <p className="text-gray-600 leading-relaxed text-[11.5px]">{n.message}</p>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 4. WORKSPACE CONTENT AREA */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#f8fafc]">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
@@ -635,7 +1049,9 @@ function HRAdminLayoutContent({ children }: { children: React.ReactNode }) {
 export default function HRAdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <TenantProvider>
-      <HRAdminLayoutContent>{children}</HRAdminLayoutContent>
+      <Suspense fallback={null}>
+        <HRAdminLayoutContent>{children}</HRAdminLayoutContent>
+      </Suspense>
     </TenantProvider>
   );
 }

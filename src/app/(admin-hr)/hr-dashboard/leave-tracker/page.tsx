@@ -1,19 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTenant } from "@/context/TenantContext";
 import { PlusIcon, CloseIcon } from "@/components/SidebarIcons";
 
-export default function LeaveTrackerPage() {
+function LeaveTrackerContent() {
   const { currentOrg, employees, leavePolicies, leaveRequests, showToast } = useTenant();
+  const searchParams = useSearchParams();
+  const isMyView = searchParams.get("view") === "my";
+
+  const myEmployee = useMemo(
+    () => employees.find((e) => e.name === "Amira Patel") || employees[0],
+    [employees]
+  );
+
+  const displayedRequests = useMemo(() => {
+    if (isMyView) {
+      return leaveRequests.filter(
+        (l) => l.employeeName === "Amira Patel" || l.employeeId === myEmployee?.id
+      );
+    }
+    return leaveRequests;
+  }, [leaveRequests, isMyView, myEmployee]);
 
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [applyForm, setApplyForm] = useState({
-    employeeId: employees[0]?.id || "",
+    employeeId: myEmployee?.id || employees[0]?.id || "",
     leaveTypeId: leavePolicies[0]?.id || "",
     startDate: new Date().toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
-    reason: "Personal family commitment",
+    reason: "Personal commitment",
     days: 1,
   });
 
@@ -66,13 +83,15 @@ export default function LeaveTrackerPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200/90 shadow-xs">
         <div>
           <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-            {currentOrg.name} Attendance & Leaves
+            {isMyView ? "Personal Leaves & Allowance" : "Employee Attendance & Leaves"}
           </span>
           <h1 className="text-2xl font-bold text-gray-900 mt-1.5 tracking-tight">
-            Leave Tracker & Time-Off
+            {isMyView ? "My Leave Tracker" : "Leave Tracker & Time-Off"}
           </h1>
           <p className="text-gray-500 text-xs mt-0.5">
-            Review PTO balances, holiday calendar, and process staff leave applications.
+            {isMyView
+              ? "Track your annual leave allowance balance, past applications, and submit new time-off requests."
+              : "Review PTO balances, holiday calendar, and process staff leave applications."}
           </p>
         </div>
         <button
@@ -81,40 +100,69 @@ export default function LeaveTrackerPage() {
           className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition cursor-pointer"
         >
           <PlusIcon className="w-3.5 h-3.5 mr-1.5 text-white" size={14} />
-          Apply Leave on Behalf
+          {isMyView ? "Apply Personal Time-Off" : "Apply Leave on Behalf"}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
-          <p className="text-xs text-gray-500 font-medium">Pending Approvals</p>
-          <p className="text-2xl font-bold text-amber-600">{pendingCount}</p>
-          <span className="text-[11px] text-gray-400">Requires review</span>
+      {isMyView ? (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Annual PTO Balance</p>
+            <p className="text-2xl font-bold text-emerald-600">14 Days</p>
+            <span className="text-[11px] text-gray-400">Available out of 18</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Sick Leaves Available</p>
+            <p className="text-2xl font-bold text-blue-600">8 Days</p>
+            <span className="text-[11px] text-gray-400">Available out of 10</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Pending Requests</p>
+            <p className="text-2xl font-bold text-amber-600">
+              {displayedRequests.filter((r) => r.status === "Pending").length}
+            </p>
+            <span className="text-[11px] text-gray-400">Awaiting review</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Approved Leaves Taken</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {displayedRequests.filter((r) => r.status === "Approved").length} Days
+            </p>
+            <span className="text-[11px] text-gray-400">Year to date</span>
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
-          <p className="text-xs text-gray-500 font-medium">Approved This Month</p>
-          <p className="text-2xl font-bold text-emerald-600">{approvedCount}</p>
-          <span className="text-[11px] text-gray-400">Recorded in calendar</span>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Pending Approvals</p>
+            <p className="text-2xl font-bold text-amber-600">{pendingCount}</p>
+            <span className="text-[11px] text-gray-400">Requires review</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Approved This Month</p>
+            <p className="text-2xl font-bold text-emerald-600">{approvedCount}</p>
+            <span className="text-[11px] text-gray-400">Recorded in calendar</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Active Leave Policies</p>
+            <p className="text-2xl font-bold text-gray-900">{leavePolicies.length}</p>
+            <span className="text-[11px] text-gray-400">Annual, Casual, Sick</span>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
+            <p className="text-xs text-gray-500 font-medium">Workforce Availability</p>
+            <p className="text-2xl font-bold text-blue-600">96.4%</p>
+            <span className="text-[11px] text-gray-400">Above target</span>
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
-          <p className="text-xs text-gray-500 font-medium">Active Leave Policies</p>
-          <p className="text-2xl font-bold text-gray-900">{leavePolicies.length}</p>
-          <span className="text-[11px] text-gray-400">Annual, Casual, Sick</span>
-        </div>
-        <div className="bg-white p-5 rounded-xl border border-gray-200/90 shadow-xs space-y-1">
-          <p className="text-xs text-gray-500 font-medium">Workforce Availability</p>
-          <p className="text-2xl font-bold text-blue-600">96.4%</p>
-          <span className="text-[11px] text-gray-400">Above target</span>
-        </div>
-      </div>
+      )}
 
       {/* Leave Requests Table */}
       <div className="bg-white rounded-2xl border border-gray-200/90 overflow-hidden shadow-xs">
         <div className="p-4 border-b border-gray-100 flex justify-between items-center text-xs">
           <h2 className="font-bold text-gray-900 uppercase tracking-wide">
-            Staff Leave Applications ({leaveRequests.length})
+            {isMyView ? "My Leave Applications" : "Staff Leave Applications"} ({displayedRequests.length})
           </h2>
-          <span className="text-gray-400">Filtered by active tenant</span>
+          <span className="text-gray-400">{isMyView ? "Personal record" : "Filtered by active tenant"}</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -130,7 +178,7 @@ export default function LeaveTrackerPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {leaveRequests.map((req) => (
+              {displayedRequests.map((req) => (
                 <tr key={req.id} className="hover:bg-gray-50/60 transition">
                   <td className="px-5 py-3.5 font-bold text-gray-900 whitespace-nowrap">
                     {req.employeeName}
@@ -285,7 +333,7 @@ export default function LeaveTrackerPage() {
                   type="submit"
                   className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold"
                 >
-                  Record & Approve Leave
+                  {isMyView ? "Submit Leave Request" : "Record & Approve Leave"}
                 </button>
               </div>
             </form>
@@ -293,5 +341,13 @@ export default function LeaveTrackerPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LeaveTrackerPage() {
+  return (
+    <Suspense fallback={null}>
+      <LeaveTrackerContent />
+    </Suspense>
   );
 }

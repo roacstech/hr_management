@@ -933,7 +933,8 @@ export class TenantDataStore {
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY);
     }
-    this.state = this.loadState();
+    this.state = this.getInitialState();
+    this.notify();
   }
 }
 
