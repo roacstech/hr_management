@@ -47,6 +47,7 @@ import {
   initialTeamSpacePosts,
   TeamLeadProfile,
   defaultTeamLeadProfile,
+  defaultManagerProfile,
 } from "./mock-data";
 
 export interface TenantDataState {
@@ -70,6 +71,7 @@ export interface TenantDataState {
   teamTimesheets: TeamMemberTimesheet[];
   teamSpacePosts: TeamSpacePost[];
   teamLeadProfile: TeamLeadProfile;
+  managerProfile: TeamLeadProfile;
 }
 
 const STORAGE_KEY = "crewsync_enterprise_hrms_v1";
@@ -168,6 +170,7 @@ export class TenantDataStore {
       teamTimesheets: initialTeamTimesheets,
       teamSpacePosts: initialTeamSpacePosts,
       teamLeadProfile: defaultTeamLeadProfile,
+      managerProfile: defaultManagerProfile,
     };
   }
 
@@ -212,6 +215,7 @@ export class TenantDataStore {
           teamTimesheets: parsed.teamTimesheets || initialTeamTimesheets,
           teamSpacePosts: parsed.teamSpacePosts || initialTeamSpacePosts,
           teamLeadProfile: parsed.teamLeadProfile ? { ...defaultTeamLeadProfile, ...parsed.teamLeadProfile } : defaultTeamLeadProfile,
+          managerProfile: parsed.managerProfile ? { ...defaultManagerProfile, ...parsed.managerProfile } : defaultManagerProfile,
         };
       }
       const savedOrg = localStorage.getItem("crewsync_active_org");
@@ -997,6 +1001,28 @@ export class TenantDataStore {
     };
     this.persist();
     return this.state.teamLeadProfile;
+  }
+
+  // --- Manager Operations ---
+  public getManagerProfile(orgId?: string): TeamLeadProfile {
+    return this.state.managerProfile || defaultManagerProfile;
+  }
+
+  public updateManagerProfile(orgId: string, updates: Partial<TeamLeadProfile>): TeamLeadProfile {
+    const current = this.state.managerProfile || defaultManagerProfile;
+    const firstName = updates.firstName !== undefined ? updates.firstName : current.firstName;
+    const lastName = updates.lastName !== undefined ? updates.lastName : current.lastName;
+    const derivedName = firstName && lastName ? `${firstName} ${lastName}`.trim() : (updates.name || current.name);
+    const derivedAvatar = firstName && lastName ? `${firstName[0]}${lastName[0]}`.toUpperCase() : (updates.avatar || current.avatar);
+
+    this.state.managerProfile = {
+      ...current,
+      ...updates,
+      name: derivedName,
+      avatar: derivedAvatar,
+    };
+    this.persist();
+    return this.state.managerProfile;
   }
 
   public getTimesheetCorrections(orgId: string): TimesheetCorrectionRequest[] {

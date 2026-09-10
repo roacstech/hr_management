@@ -40,7 +40,7 @@ function ManagerPortalLayoutContent({ children }: { children: React.ReactNode })
   const dockMenuItems = [
     { name: "Overview", path: "/manager-dashboard", icon: HomeIcon, exact: true },
     { name: "Approvals", path: "/manager-dashboard/approvals", icon: OperationsIcon },
-    { name: "Performance", path: "/manager-dashboard/performance", icon: TrophyIcon },
+    // { name: "Performance", path: "/manager-dashboard/performance", icon: TrophyIcon },
     { name: "Dept Hub", path: "/manager-dashboard/cms", icon: BuildingIcon },
   ];
 
@@ -376,6 +376,14 @@ function ManagerPortalLayoutContent({ children }: { children: React.ReactNode })
                       </span>
                     </div>
                   </div>
+                  <Link
+                    href="/manager-dashboard/profile"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                    className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 transition font-semibold"
+                  >
+                    <UserAvatarIcon className="w-3.5 h-3.5 mr-2 text-gray-400" size={15} />
+                    My Profile
+                  </Link>
                   <Link
                     href="/login"
                     className="flex items-center px-4 py-2 text-red-600 hover:bg-red-50 transition font-semibold border-t border-gray-100 mt-1"
