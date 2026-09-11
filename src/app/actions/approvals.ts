@@ -6,7 +6,11 @@ import { revalidatePath } from "next/cache";
 
 export async function getEscalatedLeaves(filter: "All" | "Pending" | "Approved" = "Pending") {
   try {
-    const whereClause: any = {};
+    const whereClause: any = {
+      employee: {
+        role: "TEAM_LEAD",
+      },
+    };
     if (filter !== "All") {
       whereClause.status = filter;
     }

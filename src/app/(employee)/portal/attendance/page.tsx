@@ -1,151 +1,245 @@
 "use client";
 
-import React, { useState } from "react";
-import { AttendanceIcon, FolderIcon, MoreIcon } from "@/components/SidebarIcons";
+import { useState, useEffect, useCallback } from "react";
+import { TimeTrackerIcon } from "@/components/SidebarIcons";
 
-export default function MyAttendancePage() {
-  const [isRequestingCorrection, setIsRequestingCorrection] = useState(false);
+interface EmployeeAttendanceRecord {
+  id: string;
+  date: string;
+  checkIn: string;
+  checkOut: string | null;
+  totalHours: string;
+  status: "On Time" | "Late" | "Missing Punch" | "Present";
+}
+
+export default function EmployeeAttendancePage() {
+  const [dbRecords, setDbRecords] = useState<EmployeeAttendanceRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const fetchAttendance = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/team-lead/attendance?history=true");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.history)) {
+          const mapped: EmployeeAttendanceRecord[] = data.history.map(
+            (r: {
+              id: string;
+              date: string;
+              checkIn: string | null;
+              checkOut: string | null;
+              workHours: number;
+              status: string;
+            }) => ({
+              id: r.id,
+              date: r.date,
+              checkIn: r.checkIn
+                ? new Date(r.checkIn).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "--",
+              checkOut: r.checkOut
+                ? new Date(r.checkOut).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : r.checkIn
+                ? "In Progress"
+                : "--",
+              totalHours:
+                r.workHours > 0
+                  ? `${r.workHours}h`
+                  : r.checkIn && !r.checkOut
+                  ? "Tracking..."
+                  : "--",
+              status: (r.status === "Present" ? "On Time" : r.status) as EmployeeAttendanceRecord["status"],
+            })
+          );
+          setDbRecords(mapped);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load DB attendance history:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAttendance();
+    const handleUpdate = () => fetchAttendance();
+    window.addEventListener("attendance-updated", handleUpdate);
+    return () => window.removeEventListener("attendance-updated", handleUpdate);
+  }, [fetchAttendance]);
+
+  // Only real DB records are shown
+  const attendanceList = dbRecords;
+
+  const totalPages = Math.max(1, Math.ceil(attendanceList.length / pageSize));
+  const paginatedData = attendanceList.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-end">
+    <div className="space-y-6 pb-16 font-sans">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200/90 shadow-xs">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">My Attendance</h1>
-          <p className="text-xs text-gray-500 mt-1">View your historical logs and submit correction requests.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mt-2 tracking-tight">
+            My Attendance History
+          </h1>
+          <p className="text-gray-500 text-xs mt-0.5 max-w-2xl">
+            View your personal attendance records, clock-in times, and total shift hours.
+          </p>
         </div>
-        <button 
-          onClick={() => setIsRequestingCorrection(!isRequestingCorrection)}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-4 rounded-lg shadow-md shadow-blue-500/20 transition-all"
-        >
-          {isRequestingCorrection ? "Cancel Request" : "Request Correction"}
-        </button>
       </div>
 
-      {isRequestingCorrection && (
-        <div className="bg-white p-6 rounded-xl border border-blue-200 shadow-lg shadow-blue-100/50 animate-in fade-in slide-in-from-top-4 duration-300">
-          <h2 className="text-sm font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Submit Correction Request</h2>
-          <form className="space-y-4 text-xs" onSubmit={(e) => { e.preventDefault(); setIsRequestingCorrection(false); }}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-500 font-medium mb-1.5">Date of Missed Clock-in</label>
-                <input type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" required />
-              </div>
-              <div>
-                <label className="block text-gray-500 font-medium mb-1.5">Correct Time</label>
-                <input type="time" className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" required />
-              </div>
-            </div>
-            <div>
-              <label className="block text-gray-500 font-medium mb-1.5">Reason for Correction</label>
-              <textarea rows={3} placeholder="Forgot to clock in, system error, etc." className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" required></textarea>
-            </div>
-            <div className="flex justify-end pt-2">
-              <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 shadow-md">
-                Submit Request
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <h2 className="text-sm font-bold text-gray-800 flex items-center">
-                <AttendanceIcon className="w-4 h-4 mr-2 text-blue-500" />
-                Recent Logs
-              </h2>
-              <select className="text-xs border border-gray-200 rounded-md p-1.5 bg-white text-gray-600 outline-none">
-                <option>This Week</option>
-                <option>Last Week</option>
-                <option>This Month</option>
-              </select>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 text-gray-500 text-[10px] uppercase tracking-wider">
-                    <th className="p-3 font-semibold border-b border-gray-100">Date</th>
-                    <th className="p-3 font-semibold border-b border-gray-100">Clock In</th>
-                    <th className="p-3 font-semibold border-b border-gray-100">Clock Out</th>
-                    <th className="p-3 font-semibold border-b border-gray-100">Total Hours</th>
-                    <th className="p-3 font-semibold border-b border-gray-100 text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="text-xs">
-                  {[
-                    { date: "Sep 7, 2026", in: "09:00 AM", out: "--:--", total: "--", status: "Active" },
-                    { date: "Sep 6, 2026", in: "08:55 AM", out: "05:05 PM", total: "8h 10m", status: "Completed" },
-                    { date: "Sep 5, 2026", in: "09:05 AM", out: "05:00 PM", total: "7h 55m", status: "Completed" },
-                    { date: "Sep 4, 2026", in: "08:58 AM", out: "05:15 PM", total: "8h 17m", status: "Completed" },
-                    { date: "Sep 3, 2026", in: "09:00 AM", out: "05:00 PM", total: "8h 00m", status: "Completed" },
-                  ].map((log, i) => (
-                    <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
-                      <td className="p-3 font-medium text-gray-800">{log.date}</td>
-                      <td className="p-3 text-gray-600">{log.in}</td>
-                      <td className="p-3 text-gray-600">{log.out}</td>
-                      <td className="p-3 text-gray-600 font-semibold">{log.total}</td>
-                      <td className="p-3 text-right">
-                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${
-                          log.status === "Active" ? "bg-blue-50 text-blue-600" : "bg-emerald-50 text-emerald-600"
-                        }`}>
-                          {log.status}
+      <div className="bg-white rounded-xl border border-gray-200/90 shadow-xs overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200 bg-slate-100/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                <th className="py-3 px-5">Date</th>
+                <th className="py-3 px-4">Check-In</th>
+                <th className="py-3 px-4">Check-Out</th>
+                <th className="py-3 px-4">Total Hours</th>
+                <th className="py-3 px-4">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-xs">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="py-14 text-center">
+                    <div className="flex items-center justify-center space-x-2 text-gray-400">
+                      <svg className="w-5 h-5 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span className="text-xs font-semibold">Loading attendance records from database...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : attendanceList.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-14 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                      <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                        <TimeTrackerIcon className="w-6 h-6" size={24} />
+                      </div>
+                      <p className="text-sm font-bold text-gray-800">No attendance records found</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        You have not recorded any attendance punches yet. Use the Check-in button in the top navigation to record your attendance.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((record) => (
+                  <tr key={record.id} className="hover:bg-gray-50/70 transition-colors">
+                    <td className="py-3.5 px-5 font-bold text-gray-900">{record.date}</td>
+                    <td className="py-3.5 px-4 font-semibold text-gray-700">{record.checkIn}</td>
+                    <td className="py-3.5 px-4 font-semibold text-gray-700">{record.checkOut || "--"}</td>
+                    <td className="py-3.5 px-4 font-semibold text-gray-700">{record.totalHours}</td>
+                    <td className="py-3.5 px-4">
+                      {record.status === "On Time" && (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                          On Time
                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                      )}
+                      {record.status === "Late" && (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
+                          Late
+                        </span>
+                      )}
+                      {record.status === "Missing Punch" && (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800">
+                          Missing Punch
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
-        <div className="space-y-6">
-          {/* Summary Widget */}
-          <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs p-5">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">Weekly Summary</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-gray-500 font-medium">Hours Worked</span>
-                  <span className="text-gray-900 font-bold">32h 22m / 40h</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: "80%" }}></div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
-                  <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Avg Clock In</div>
-                  <div className="text-sm font-bold text-gray-800">08:59 AM</div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
-                  <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Avg Clock Out</div>
-                  <div className="text-sm font-bold text-gray-800">05:05 PM</div>
-                </div>
-              </div>
-            </div>
+        {/* Pagination Controls */}
+        <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs select-none mt-auto">
+          <div className="text-gray-500">
+            Showing{" "}
+            <span className="font-semibold text-gray-900">
+              {attendanceList.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+            </span>{" "}
+            to{" "}
+            <span className="font-semibold text-gray-900">
+              {Math.min(currentPage * pageSize, attendanceList.length)}
+            </span>{" "}
+            of{" "}
+            <span className="font-semibold text-gray-900">{attendanceList.length}</span> records
           </div>
 
-          {/* Pending Correction Requests */}
-          <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs p-5">
-            <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center justify-between">
-              Pending Requests
-              <span className="bg-orange-100 text-orange-600 text-[10px] px-1.5 py-0.5 rounded font-bold">1</span>
-            </h3>
-            <div className="space-y-3">
-              <div className="border border-orange-200 bg-orange-50/50 rounded-lg p-3">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <div className="text-xs font-bold text-gray-900">Missed Clock-in</div>
-                    <div className="text-[10px] text-gray-500">For Sep 2, 2026</div>
-                  </div>
-                  <span className="text-[10px] font-bold text-orange-600 uppercase">Pending Review</span>
-                </div>
-                <p className="text-[11px] text-gray-600 italic">"Forgot my access card, started working at 9:00 AM."</p>
-              </div>
-            </div>
+          <div className="flex items-center space-x-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`px-3 py-1.5 rounded-lg font-semibold border transition flex items-center space-x-1 ${
+                currentPage === 1
+                  ? "border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed"
+                  : "border-gray-200 text-gray-700 bg-white hover:bg-gray-100 active:scale-95 shadow-xs cursor-pointer"
+              }`}
+            >
+              Previous
+            </button>
+
+            {/* Numbered Page Buttons */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+              if (
+                p === 1 ||
+                p === totalPages ||
+                (p >= currentPage - 1 && p <= currentPage + 1)
+              ) {
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setCurrentPage(p)}
+                    className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold transition cursor-pointer ${
+                      currentPage === p
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                        : "text-gray-600 hover:bg-gray-200 bg-gray-100"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              } else if (p === currentPage - 2 || p === currentPage + 2) {
+                return (
+                  <span key={p} className="text-gray-400 px-1">
+                    ...
+                  </span>
+                );
+              }
+              return null;
+            })}
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages || attendanceList.length === 0}
+              className={`px-3 py-1.5 rounded-lg font-semibold border transition flex items-center space-x-1 ${
+                currentPage === totalPages || attendanceList.length === 0
+                  ? "border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed"
+                  : "border-gray-200 text-gray-700 bg-white hover:bg-gray-100 active:scale-95 shadow-xs cursor-pointer"
+              }`}
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>

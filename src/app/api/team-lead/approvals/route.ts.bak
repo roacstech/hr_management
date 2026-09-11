@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { tenantStore } from "@/lib/tenant-store";
-import { prisma } from "@/lib/prisma";
 
 export interface UnifiedApprovalItem {
   id: string;
@@ -28,45 +27,42 @@ export async function GET(req: NextRequest) {
     const orgId = searchParams.get("orgId") || "org-roacs";
     const search = (searchParams.get("search") || "").toLowerCase().trim();
 
-    // 1. Fetch Leaves from DB (Only for Employees)
-    const dbLeaves = await prisma.leaveRequest.findMany({
-      where: {
-        employee: {
-          role: "EMPLOYEE",
-        },
-      },
-      include: {
-        employee: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const state = tenantStore.getState();
+    const leaveRequests = (state.leaveRequests || []).filter((l) => l.organizationId === orgId);
+    const timesheetCorrections = (state.timesheetCorrections || []).filter((c) => c.organizationId === orgId);
 
-    const allLeaveItems: UnifiedApprovalItem[] = dbLeaves.map((l) => {
-      // Parse days from duration e.g. "2 days" -> 2
-      const daysMatch = l.duration.match(/[\d.]+/);
-      const days = daysMatch ? parseFloat(daysMatch[0]) : 1;
+    const allLeaveItems: UnifiedApprovalItem[] = leaveRequests.map((l) => ({
+      id: l.id,
+      category: "LEAVE",
+      employeeName: l.employeeName,
+      employeeAvatar: l.employeeAvatar || "EM",
+      title: `${l.leaveTypeName} (${l.days} ${l.days === 1 ? "Day" : "Days"})`,
+      subtitle: "Time-Off Application",
+      dates: `${l.startDate} to ${l.endDate}`,
+      reason: l.reason,
+      status: l.status,
+      appliedAt: l.appliedAt,
+      reviewedBy: l.reviewedBy,
+      reviewedAt: l.reviewedAt,
+      meta: "PTO Balance: 8.0 Days Remaining",
+    }));
 
-      return {
-        id: l.id,
-        category: "LEAVE",
-        employeeName: l.employee?.name || "Unknown Employee",
-        employeeAvatar: l.employee?.avatar || "EM",
-        title: `${l.type} (${days} ${days === 1 ? "Day" : "Days"})`,
-        subtitle: "Time-Off Application",
-        dates: `${l.startDate.toISOString().split("T")[0]} to ${l.endDate.toISOString().split("T")[0]}`,
-        reason: l.note || "",
-        status: l.status as "Pending" | "Approved" | "Rejected",
-        appliedAt: l.createdAt.toISOString(),
-        reviewedBy: l.status !== "Pending" ? (l.escalatedBy || "Manager") : undefined,
-        reviewedAt: l.status !== "Pending" ? l.updatedAt.toISOString() : undefined,
-        meta: "PTO Balance: 8.0 Days Remaining",
-      };
-    });
-
-    // 2. Fetch Corrections (Removed mock data as requested, returning empty until DB model is added)
-    const allCorrectionItems: UnifiedApprovalItem[] = [];
+    const allCorrectionItems: UnifiedApprovalItem[] = timesheetCorrections.map((c) => ({
+      id: c.id,
+      category: "CORRECTION",
+      employeeName: c.employeeName,
+      employeeAvatar: c.employeeAvatar || "EM",
+      title: `${c.type}`,
+      subtitle: `Target Punch: ${c.requestedTime}`,
+      dates: `Work Date: ${c.date}`,
+      reason: c.reason,
+      status: c.status,
+      appliedAt: c.appliedAt,
+      reviewedBy: c.reviewedBy,
+      reviewedAt: c.reviewedAt,
+      rejectionReason: c.rejectionReason,
+      meta: c.originalTime ? `Original recorded: ${c.originalTime}` : "No punch recorded",
+    }));
 
     const allCombined = [...allLeaveItems, ...allCorrectionItems].sort((a, b) => {
       // Show pending items first, then by date applied descending
@@ -139,21 +135,13 @@ export async function POST(req: NextRequest) {
 
     // Handle Bulk Approval
     if (body.bulk && Array.isArray(body.items)) {
-      for (const item of body.items) {
+      body.items.forEach((item: { id: string; category: "LEAVE" | "CORRECTION" }) => {
         if (item.category === "LEAVE") {
-          await prisma.leaveRequest.update({
-            where: { id: item.id },
-            data: { status: "Approved", escalatedBy: reviewerName },
-          });
-          try {
-            tenantStore.approveLeaveRequest(orgId, item.id, reviewerName);
-          } catch (e) {}
+          tenantStore.approveLeaveRequest(orgId, item.id, reviewerName);
         } else {
-          try {
-            tenantStore.approveTimesheetCorrection(orgId, item.id, reviewerName);
-          } catch (e) {}
+          tenantStore.approveTimesheetCorrection(orgId, item.id, reviewerName);
         }
-      }
+      });
       return NextResponse.json({ success: true, count: body.items.length });
     }
 
@@ -164,37 +152,15 @@ export async function POST(req: NextRequest) {
 
     if (type === "LEAVE") {
       if (action === "APPROVE") {
-        await prisma.leaveRequest.update({
-          where: { id },
-          data: { status: "Approved", escalatedBy: reviewerName },
-        });
-        try {
-          tenantStore.approveLeaveRequest(orgId, id, reviewerName);
-        } catch (e) {}
+        tenantStore.approveLeaveRequest(orgId, id, reviewerName);
       } else {
-        const leave = await prisma.leaveRequest.findUnique({ where: { id } });
-        const existingNote = leave?.note || "";
-        await prisma.leaveRequest.update({
-          where: { id },
-          data: { 
-            status: "Rejected", 
-            escalatedBy: reviewerName, 
-            note: existingNote + (reason ? ` | [Rejected Reason]: ${reason}` : "") 
-          },
-        });
-        try {
-          tenantStore.rejectLeaveRequest(orgId, id, reviewerName, reason);
-        } catch (e) {}
+        tenantStore.rejectLeaveRequest(orgId, id, reviewerName, reason);
       }
     } else {
       if (action === "APPROVE") {
-        try {
-          tenantStore.approveTimesheetCorrection(orgId, id, reviewerName);
-        } catch(e) {}
+        tenantStore.approveTimesheetCorrection(orgId, id, reviewerName);
       } else {
-        try {
-          tenantStore.rejectTimesheetCorrection(orgId, id, reviewerName, reason);
-        } catch(e) {}
+        tenantStore.rejectTimesheetCorrection(orgId, id, reviewerName, reason);
       }
     }
 

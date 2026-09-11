@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { AttendanceIcon, LeaveTrackerIcon, StarIcon } from "@/components/SidebarIcons";
+import AttendanceWidget from "@/components/AttendanceWidget";
 
 export default function PersonalDashboardPage() {
   const [clockedIn, setClockedIn] = useState(false);
@@ -33,30 +34,8 @@ export default function PersonalDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Clock In/Out Widget */}
-        <div className="bg-white rounded-xl shadow-xs border border-gray-100 p-6 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-gray-800 flex items-center mb-1">
-              <AttendanceIcon className="w-4 h-4 mr-2 text-blue-500" />
-              Time Clock
-            </h3>
-            <p className="text-xs text-gray-500 mb-6">Track your daily working hours.</p>
-          </div>
-          
-          <div className="text-center mb-6">
-            <div className="text-3xl font-black text-gray-900 tracking-tight">{time}</div>
-            <div className="text-xs font-medium text-gray-500 uppercase mt-1">Current Time</div>
-          </div>
-
-          <button
-            onClick={handleClockToggle}
-            className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 shadow-md ${
-              clockedIn 
-                ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 shadow-red-500/10" 
-                : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/25"
-            }`}
-          >
-            {clockedIn ? "Clock Out" : "Clock In"}
-          </button>
+        <div className="flex items-center justify-center p-4">
+          <AttendanceWidget />
         </div>
 
         {/* Current Shifts Widget */}

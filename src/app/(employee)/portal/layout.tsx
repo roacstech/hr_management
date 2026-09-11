@@ -19,6 +19,7 @@ import {
   LogoutIcon,
 } from "@/components/SidebarIcons";
 import { TenantProvider, useTenant } from "@/context/TenantContext";
+import AttendanceWidget from "@/components/AttendanceWidget";
 
 function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -33,18 +34,20 @@ function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isAttendanceMenuOpen, setIsAttendanceMenuOpen] = useState(false);
 
   const notificationDrawerRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const quickAddRef = useRef<HTMLDivElement>(null);
+  const attendanceRef = useRef<HTMLDivElement>(null);
 
   // Main fixed sidebar dock items for Employee
   const dockMenuItems = [
     { name: "Dashboard", path: "/portal", icon: HomeIcon, exact: true },
     // { name: "My Profile", path: "/portal/profile", icon: OnboardingIcon },
     { name: "Attendance", path: "/portal/attendance", icon: AttendanceIcon },
-    { name: "Leaves", path: "/portal/leave-tracker", icon: LeaveTrackerIcon },
-    { name: "Payslips", path: "/portal/payslips", icon: CompensationIcon },
+    { name: "My Leave", path: "/portal/leave-tracker", icon: LeaveTrackerIcon },
+    // { name: "Payslips", path: "/portal/payslips", icon: CompensationIcon },
     { name: "Company Hub", path: "/portal/cms", icon: BuildingIcon },
   ];
 
@@ -55,6 +58,7 @@ function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }
         setIsNotificationsOpen(false);
         setIsProfileMenuOpen(false);
         setIsQuickAddOpen(false);
+        setIsAttendanceMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -76,6 +80,9 @@ function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }
       }
       if (quickAddRef.current && !quickAddRef.current.contains(target)) {
         setIsQuickAddOpen(false);
+      }
+      if (attendanceRef.current && !attendanceRef.current.contains(target)) {
+        setIsAttendanceMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -295,6 +302,7 @@ function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }
                   setIsQuickAddOpen((p) => !p);
                   setIsNotificationsOpen(false);
                   setIsProfileMenuOpen(false);
+                  setIsAttendanceMenuOpen(false);
                 }}
                 className="h-8 px-2.5 rounded-lg bg-[#007aff] hover:bg-[#006ee0] active:scale-95 text-white flex items-center space-x-1.5 transition-all duration-150 shadow-md shadow-blue-500/25 cursor-pointer focus:outline-none text-xs font-semibold"
                 title="Quick Create"
@@ -334,6 +342,7 @@ function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }
                 setIsNotificationsOpen((p) => !p);
                 setIsQuickAddOpen(false);
                 setIsProfileMenuOpen(false);
+                setIsAttendanceMenuOpen(false);
               }}
               className="w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none relative"
               title="Notifications"
@@ -348,6 +357,29 @@ function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }
                 </span>
               )}
             </button>
+
+            {/* Attendance Widget Toggle */}
+            <div className="relative" ref={attendanceRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAttendanceMenuOpen((p) => !p);
+                  setIsQuickAddOpen(false);
+                  setIsNotificationsOpen(false);
+                  setIsProfileMenuOpen(false);
+                }}
+                className="w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none"
+                title="Mark Attendance"
+              >
+                <AttendanceIcon className="w-4 h-4" size={16} />
+              </button>
+
+              {isAttendanceMenuOpen && (
+                <div className="absolute right-0 mt-3 pt-6 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <AttendanceWidget />
+                </div>
+              )}
+            </div>
 
             {/* Settings Gear Icon */}
             <Link
@@ -366,6 +398,7 @@ function EmployeePortalLayoutContent({ children }: { children: React.ReactNode }
                   setIsProfileMenuOpen((p) => !p);
                   setIsQuickAddOpen(false);
                   setIsNotificationsOpen(false);
+                  setIsAttendanceMenuOpen(false);
                 }}
                 className="w-8 h-8 rounded-lg border border-white/20 hover:border-blue-400 bg-white/10 transition cursor-pointer flex items-center justify-center focus:outline-none overflow-hidden"
                 title="Employee Account"
